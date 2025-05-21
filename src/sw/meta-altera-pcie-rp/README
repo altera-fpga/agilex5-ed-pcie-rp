@@ -1,0 +1,42 @@
+This README file contains information on the contents of the meta-altera-pcie-rp layer.
+
+Please see the corresponding sections below for details.
+
+Dependencies
+============
+
+  URI: https://git.yoctoproject.org/git/poky
+  branch: scarthgap
+
+  URI: https://git.yoctoproject.org/git/meta-intel-fpga
+  branch: scarthgap
+
+  URI: https://github.com/altera-opensource/meta-intel-fpga-refdes.git
+  branch: scarthgap
+
+  URI: https://git.openembedded.org/meta-openembedded
+  branch: scarthgap
+
+  URI: https://github.com/kraj/meta-clang.git
+  branch: scarthgap
+
+Patches
+=======
+
+Table of Contents
+=================
+
+  I. Adding the meta-altera-pcie-rp layer to your build
+ II. Misc
+
+
+I. Adding the meta-altera-pcie-rp layer to your build
+=================================================
+
+Run 'bitbake-layers add-layer meta-altera-pcie-rp'
+
+II. Misc
+========
+
+The layer substitues the PCIe Root Port Example Design (RPED) for the
+Golden System Reference Design (GSRD).

@@ -1,0 +1,10 @@
+/flist.f
+/output_files/
+/sm_hssi_port_rotation_param_map.json
+/dni/
+/qdb/
+/quartus*.log
+/quartus*.rec
+/quartus.rec.log.flock
+/tmp-clearbox/
+/ip_upgrade_port_diff_reports/
