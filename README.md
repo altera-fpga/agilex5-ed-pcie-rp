@@ -12,7 +12,7 @@ The PCIe root port example design is based on the Agilex™ 5 Golden System Refe
 
 The system block diagram is shown below:
 
-![Agilex™ 5 Root Port block diagram](https://github.com/intel-innersource/applications.fpga.system-example-designs.agilex5-ed-pcie-rp/blob/main/images/SM_RP.png)
+![Agilex™ 5 Root Port block diagram](https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/rel/25.1/images/SM_RP.png)
 
 - The HPS-to-FPGA (H2F) lightweight AXI4 interface on the HPS is used for accessing the control and status (CSR) interface of various blocks on the design. It connects to the reconfiguration interface on the PCIe root port HIP as well as the Configuration Slave (CS) interface on the MCDMA bridge.
    - Configuration of the PCIe Endpoint (as part of Enumeration) is done via the CS interface. This interface supports only one outstanding configuration write/read transaction, as the number of PCIe tags allotted to this interface is only one (inside the MCDMA bridge).
@@ -30,7 +30,7 @@ The system block diagram is shown below:
 - **Category**: HPS, PCIe
 - **Source**: GitHub
 - **Design Support**: Simulation, Compile/Timing, Hardware
-- **URL**: https://github.com/intel-innersource/applications.fpga.system-example-designs.agilex5-ed-pcie-rp
+- **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp
 - **Design Package**: a5ed065es-premium-devkit-pcie-rp-gen4x4.zip
 
 ## Repository Structure
