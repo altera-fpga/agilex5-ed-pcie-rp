@@ -18,8 +18,8 @@ export IMPORT_IP_ROOTDIR=$QUARTUS_ROOTDIR/../ip
 export DESIGNWARE_HOME=/p/psg/EIP/synopsys/vip_common/vip_Q-2020.03A
 export https_proxy=http://proxy-chain.intel.com:912
 export http_proxy=http://proxy-chain.intel.com:911
-
-
+export http_proxy=http://proxy-dmz.altera.com:912
+export https_proxy=http://proxy-dmz.altera.com:912
 echo "VCS                 " $VCS_HOME
 echo "QUARTUS_HOME        " $QUARTUS_HOME
 echo "IMPORT_IP_ROOTDIR   " $IMPORT_IP_ROOTDIR

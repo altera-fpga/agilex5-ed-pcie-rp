@@ -332,17 +332,17 @@ while(<$read_fh>)
       print $write_fh "    `endif\n";
    }
 
-   elsif ($_ =~ m/altera_ace5lite_cache_coherency_translator_0 altera_ace5lite_cache_coherency_translator_0 (.*)/) 
-    {
-      print $write_fh "    `ifdef SM_RP_SIM_ENABLE \n";
-      print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_arready = '0;\n";
-      print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_awready = '0;\n";
-      print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_bvalid = '0;\n";
-      print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_rvalid = '0;\n";
-      print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_wready = '0;\n";
-      print $write_fh "    `endif\n\n";
-      print $write_fh "    $_";
-    }
+   #elsif ($_ =~ m/altera_ace5lite_cache_coherency_translator_0 altera_ace5lite_cache_coherency_translator_0 (.*)/) 
+   # {
+   #   print $write_fh "    `ifdef SM_RP_SIM_ENABLE \n";
+   #   print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_arready = '0;\n";
+   #   print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_awready = '0;\n";
+   #   print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_bvalid = '0;\n";
+   #   print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_rvalid = '0;\n";
+   #   print $write_fh "  assign mm_interconnect_0_subsys_hps_f2sdram_adapter_axi4_sub_wready = '0;\n";
+   #   print $write_fh "    `endif\n\n";
+   #   print $write_fh "    $_";
+   # }
 
 
   # -----------------------------------------------------------------------

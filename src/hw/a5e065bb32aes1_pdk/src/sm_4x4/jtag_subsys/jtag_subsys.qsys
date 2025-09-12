@@ -207,11 +207,11 @@ https://fpgasoftware.intel.com/eula.-->
                 &lt;suppliedSystemInfos&gt;
                     &lt;entry&gt;
                         &lt;key&gt;ADDRESS_MAP&lt;/key&gt;
-                        &lt;value&gt;&amp;lt;address-map&amp;gt;&amp;lt;slave name='parent/altera_ace5lite_cache_coherency_translator_0.s0' start='0x0' end='0x1000000000' datawidth='256' /&amp;gt;&amp;lt;/address-map&amp;gt;&lt;/value&gt;
+                        &lt;value&gt;&lt;/value&gt;
                     &lt;/entry&gt;
                     &lt;entry&gt;
                         &lt;key&gt;ADDRESS_WIDTH&lt;/key&gt;
-                        &lt;value&gt;36&lt;/value&gt;
+                        &lt;value&gt;-1&lt;/value&gt;
                     &lt;/entry&gt;
                 &lt;/suppliedSystemInfos&gt;
                 &lt;consumedSystemInfos/&gt;
@@ -5052,7 +5052,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;consumedSystemInfos&gt;
                         &lt;entry&gt;
                             &lt;key&gt;ADDRESS_WIDTH&lt;/key&gt;
-                            &lt;value&gt;36&lt;/value&gt;
+                            &lt;value&gt;10&lt;/value&gt;
                         &lt;/entry&gt;
                     &lt;/consumedSystemInfos&gt;
                 &lt;/value&gt;
@@ -6680,7 +6680,7 @@ https://fpgasoftware.intel.com/eula.-->
               <ipxact:segment>
                 <ipxact:name>hps_m_avmm_cdc.s0 via hps_m_addr_span_extender</ipxact:name>
                 <ipxact:addressOffset>0x0000_0000</ipxact:addressOffset>
-                <ipxact:range>0x10_0000_0000</ipxact:range>
+                <ipxact:range>0x1_0000_0000</ipxact:range>
               </ipxact:segment>
             </ipxact:segments>
           </ipxact:addressSpace>

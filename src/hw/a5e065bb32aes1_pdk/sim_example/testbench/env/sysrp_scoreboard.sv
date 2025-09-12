@@ -291,11 +291,19 @@ class sysrp_scoreboard extends uvm_scoreboard;
 	 pcie_txwrite_trans = pcie_tx_write_fifo_q.pop_front();
 	 l_address_pcie_write_trans = pcie_txwrite_trans.tlp.address;
 
-         if( (!unaligned_enb) && (l_address_pcie_write_trans[63:0] !== axi_rx_pkt_address[63:0]) ) 
-            `uvm_error(get_type_name(), $sformatf("write_axi_port_rx: Mismatch Exp address_pcie_write_trans=0x%0h, Act axi_rx_pkt_address =0x%0h", l_address_pcie_write_trans, axi_rx_pkt_address));
+	 if( (!unaligned_enb) && (l_address_pcie_write_trans[63:0] !== axi_rx_pkt_address[63:0]) ) begin
+            if( (axi_rx_pkt_address[63:0] >= ('h9_FFFF_F000 -4)) && (axi_rx_pkt_address[63:0] <'h9_FFFF_FFFF) )
+	        `uvm_info(get_type_name(),$sformatf("write_axi_port_rx: MSI Interrupt Addr =%0h", axi_rx_pkt_address),UVM_LOW)
+             else
+                `uvm_error(get_type_name(), $sformatf("write_axi_port_rx: Mismatch Exp address_pcie_write_trans=0x%0h, Act axi_rx_pkt_address =0x%0h", l_address_pcie_write_trans, axi_rx_pkt_address));
+	 end
 
-         if( (unaligned_enb) && (l_address_pcie_write_trans[63:8] !== axi_rx_pkt_address[63:8]) ) 
-            `uvm_error(get_type_name(), $sformatf("write_axi_port_rx: Mismatch Exp address_pcie_write_trans=0x%0h, Act axi_rx_pkt_address =0x%0h", l_address_pcie_write_trans, axi_rx_pkt_address));
+	 if( (unaligned_enb) && (l_address_pcie_write_trans[63:8] !== axi_rx_pkt_address[63:8]) )  begin
+            if( (axi_rx_pkt_address[63:0] >= ('h9_FFFF_F000 -4)) && (axi_rx_pkt_address[63:0] <'h9_FFFF_FFFF) )
+	        `uvm_info(get_type_name(),$sformatf("write_axi_port_rx: MSI Interrupt Addr =%0h", axi_rx_pkt_address),UVM_LOW)
+             else
+                `uvm_error(get_type_name(), $sformatf("write_axi_port_rx: Mismatch Exp address_pcie_write_trans=0x%0h, Act axi_rx_pkt_address =0x%0h", l_address_pcie_write_trans, axi_rx_pkt_address));
+	 end
 
          for(int i=0;i<data_array_size;i++) begin //{
 	    for(int j=0;j<16;j++) begin // {
@@ -327,7 +335,9 @@ class sysrp_scoreboard extends uvm_scoreboard;
        `uvm_info(get_type_name(),$sformatf("write_axi_port_rx: QUEUE TX [Transmitted from PCIe] = %p",pcie_payload_tx_q),UVM_LOW);
        `uvm_info(get_type_name(),$sformatf("write_axi_port_rx: QUEUE RX [Received at AXI Slave] = %p",axi_payload_rx_q),UVM_LOW);
        `uvm_info(get_type_name(),$sformatf(" FOREACH COUNTER = %d \n",check_pcie_counter),UVM_LOW)
-       compare_data_from_pcie();
+       if( (axi_rx_pkt_address[63:0] >= ('h9_FFFF_F000 -4)) && (axi_rx_pkt_address[63:0] <'h9_FFFF_FFFF) )
+          `uvm_info(get_type_name(),$sformatf("write_axi_port_rx: Not checking data for MSI Interrupt Addr =%0h", axi_rx_pkt_address),UVM_LOW)
+       else compare_data_from_pcie();
 
    endfunction :write_axi_port_rx
 

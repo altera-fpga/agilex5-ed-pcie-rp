@@ -1,3 +1,10 @@
+//****************************************************************************
+//
+// SPDX-License-Identifier: MIT-0
+// Copyright(c) 2019-2021 Intel Corporation.
+//
+//****************************************************************************
+
 // Copyright 2020 Intel Corporation.
 //
 // THIS SOFTWARE MAY CONTAIN PREPRODUCTION CODE AND IS PROVIDED BY THE

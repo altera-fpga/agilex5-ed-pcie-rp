@@ -1,3 +1,10 @@
+//****************************************************************************
+//
+// SPDX-License-Identifier: MIT-0
+// Copyright(c) 2019-2021 Intel Corporation.
+//
+//****************************************************************************
+
 // (C) 2001-2014 Altera Corporation. All rights reserved.
 // Your use of Altera Corporation's design tools, logic functions and other 
 // software and tools, and its AMPP partner logic functions, and any output 
