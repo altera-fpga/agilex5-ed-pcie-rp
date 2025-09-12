@@ -261,7 +261,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="addressSpan" type="string">
           <ipxact:name>addressSpan</ipxact:name>
           <ipxact:displayName>Address span</ipxact:displayName>
-          <ipxact:value>262144</ipxact:value>
+          <ipxact:value>1024</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="addressUnits" type="string">
           <ipxact:name>addressUnits</ipxact:name>
@@ -832,7 +832,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:fileSetRef>
           <ipxact:localName>QUARTUS_SYNTH</ipxact:localName>
         </ipxact:fileSetRef>
-        <ipxact:parameters></ipxact:parameters>
       </ipxact:componentInstantiation>
     </ipxact:instantiations>
     <ipxact:ports>
@@ -840,7 +839,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_clk</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -853,7 +851,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_reset</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -866,7 +863,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_clk</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -879,7 +875,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_reset</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -892,7 +887,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_waitrequest</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -908,7 +902,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>127</ipxact:right>
+              <ipxact:right>31</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -923,7 +917,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_readdatavalid</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -936,7 +929,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_burstcount</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC_VECTOR</ipxact:typeName>
@@ -952,7 +944,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>127</ipxact:right>
+              <ipxact:right>31</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -970,7 +962,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>17</ipxact:right>
+              <ipxact:right>9</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -985,7 +977,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_write</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -998,7 +989,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_read</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1014,7 +1004,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>15</ipxact:right>
+              <ipxact:right>3</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -1029,7 +1019,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>s0_debugaccess</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1042,7 +1031,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_waitrequest</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1058,7 +1046,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>127</ipxact:right>
+              <ipxact:right>31</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -1073,7 +1061,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_readdatavalid</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>in</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1086,7 +1073,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_burstcount</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC_VECTOR</ipxact:typeName>
@@ -1102,7 +1088,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>127</ipxact:right>
+              <ipxact:right>31</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -1120,7 +1106,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>17</ipxact:right>
+              <ipxact:right>9</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -1135,7 +1121,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_write</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1148,7 +1133,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_read</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1164,7 +1148,7 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:vectors>
             <ipxact:vector>
               <ipxact:left>0</ipxact:left>
-              <ipxact:right>15</ipxact:right>
+              <ipxact:right>3</ipxact:right>
             </ipxact:vector>
           </ipxact:vectors>
           <ipxact:wireTypeDefs>
@@ -1179,7 +1163,6 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:name>m0_debugaccess</ipxact:name>
         <ipxact:wire>
           <ipxact:direction>out</ipxact:direction>
-          <ipxact:vectors></ipxact:vectors>
           <ipxact:wireTypeDefs>
             <ipxact:wireTypeDef>
               <ipxact:typeName>STD_LOGIC</ipxact:typeName>
@@ -1202,7 +1185,7 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="DATA_WIDTH" type="int">
           <ipxact:name>DATA_WIDTH</ipxact:name>
           <ipxact:displayName>Data width</ipxact:displayName>
-          <ipxact:value>128</ipxact:value>
+          <ipxact:value>32</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="SYMBOL_WIDTH" type="int">
           <ipxact:name>SYMBOL_WIDTH</ipxact:name>
@@ -1217,12 +1200,12 @@ https://fpgasoftware.intel.com/eula.-->
         <ipxact:parameter parameterId="SYSINFO_ADDR_WIDTH" type="int">
           <ipxact:name>SYSINFO_ADDR_WIDTH</ipxact:name>
           <ipxact:displayName>SYSINFO_ADDR_WIDTH</ipxact:displayName>
-          <ipxact:value>18</ipxact:value>
+          <ipxact:value>10</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="USE_AUTO_ADDRESS_WIDTH" type="int">
           <ipxact:name>USE_AUTO_ADDRESS_WIDTH</ipxact:name>
           <ipxact:displayName>Use automatically-determined address width</ipxact:displayName>
-          <ipxact:value>1</ipxact:value>
+          <ipxact:value>0</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="ADDRESS_UNITS" type="string">
           <ipxact:name>ADDRESS_UNITS</ipxact:name>
@@ -1298,17 +1281,6 @@ https://fpgasoftware.intel.com/eula.-->
           <ipxact:displayName>bonusData</ipxact:displayName>
           <ipxact:value>bonusData 
 {
-   element $system
-   {
-      datum _originalDeviceFamily
-      {
-         value = "Agilex 5";
-         type = "String";
-      }
-   }
-   element mm_ccb_5
-   {
-   }
 }
 </ipxact:value>
         </ipxact:parameter>
@@ -1470,7 +1442,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;s0_readdata&lt;/name&gt;
                     &lt;role&gt;readdata&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;128&lt;/width&gt;
+                    &lt;width&gt;32&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1497,7 +1469,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;s0_writedata&lt;/name&gt;
                     &lt;role&gt;writedata&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;128&lt;/width&gt;
+                    &lt;width&gt;32&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1506,7 +1478,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;s0_address&lt;/name&gt;
                     &lt;role&gt;address&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;18&lt;/width&gt;
+                    &lt;width&gt;10&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1533,7 +1505,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;s0_byteenable&lt;/name&gt;
                     &lt;role&gt;byteenable&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;16&lt;/width&gt;
+                    &lt;width&gt;4&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1580,7 +1552,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;/entry&gt;
                     &lt;entry&gt;
                         &lt;key&gt;addressSpan&lt;/key&gt;
-                        &lt;value&gt;262144&lt;/value&gt;
+                        &lt;value&gt;1024&lt;/value&gt;
                     &lt;/entry&gt;
                     &lt;entry&gt;
                         &lt;key&gt;addressUnits&lt;/key&gt;
@@ -1798,7 +1770,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;m0_readdata&lt;/name&gt;
                     &lt;role&gt;readdata&lt;/role&gt;
                     &lt;direction&gt;Input&lt;/direction&gt;
-                    &lt;width&gt;128&lt;/width&gt;
+                    &lt;width&gt;32&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1825,7 +1797,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;m0_writedata&lt;/name&gt;
                     &lt;role&gt;writedata&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;128&lt;/width&gt;
+                    &lt;width&gt;32&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1834,7 +1806,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;m0_address&lt;/name&gt;
                     &lt;role&gt;address&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;18&lt;/width&gt;
+                    &lt;width&gt;10&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -1861,7 +1833,7 @@ https://fpgasoftware.intel.com/eula.-->
                     &lt;name&gt;m0_byteenable&lt;/name&gt;
                     &lt;role&gt;byteenable&lt;/role&gt;
                     &lt;direction&gt;Output&lt;/direction&gt;
-                    &lt;width&gt;16&lt;/width&gt;
+                    &lt;width&gt;4&lt;/width&gt;
                     &lt;lowerBound&gt;0&lt;/lowerBound&gt;
                     &lt;vhdlType&gt;STD_LOGIC_VECTOR&lt;/vhdlType&gt;
                     &lt;terminationValue&gt;0&lt;/terminationValue&gt;
@@ -2046,7 +2018,7 @@ https://fpgasoftware.intel.com/eula.-->
                 &lt;suppliedSystemInfos&gt;
                     &lt;entry&gt;
                         &lt;key&gt;ADDRESS_WIDTH&lt;/key&gt;
-                        &lt;value&gt;18&lt;/value&gt;
+                        &lt;value&gt;10&lt;/value&gt;
                     &lt;/entry&gt;
                 &lt;/suppliedSystemInfos&gt;
                 &lt;consumedSystemInfos/&gt;

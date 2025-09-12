@@ -268,7 +268,7 @@ wire [255:0] rx_st_tdata;
 wire [31:0] rx_st_tkeep;
 logic [31:0] sender_irq;
 
-always_ff @(posedge coreclk_out) begin
+always_ff @(posedge iopll_clk_250) begin
   pcie_subsys_0_msi_to_gic_interrupt_sender_irq_c1 <= pcie_subsys_0_msi_to_gic_interrupt_sender_irq;
 end
 
@@ -681,6 +681,10 @@ qsys_top soc_inst (
 ,.hps_io_gpio11                             (hps_gpio0_io11)
 ,.hps_io_gpio27                             (hps_gpio1_io3)
 ,.hps_io_hps_osc_clk                        (hps_osc_clk)
+
+// msi_ordering interface
+,.pcie_subsys_0_msi_ordering_csr_vector_addr_csr_vector_addr (36'h9_FFFF_F000)
+
 );
 
 endmodule
