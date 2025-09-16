@@ -17,6 +17,7 @@ SRC_URI:append:agilex5_dk_a5e065bb32aes1 = " \
 	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0005-PCI-altera-add-register-regmap-for-debugfs.patch", "", d)} \
 	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0006-PCI-altera-enable-all-performance-counters.patch", "", d)} \
 	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0007-PCI-altera-set-maximum-supported-TLP-data-payload-si.patch", "", d)} \
+	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0008-Reserve-system-memory-required-by-rootport-hw-design.patch", "", d)} \
 	"
 
 # TODO Once Agilex 5 support has been merged into linux-socfpga main branch,
