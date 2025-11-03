@@ -29,16 +29,6 @@ This directory contains the Quartus Project for the Agilex™ 5 PCIe Root Port S
     quartus_pfg -c -o hps=on -o hps_path=u-boot-spl-dtb.hex output_files/agilex5_dk_a5e065bb32aes1_rped_ghrd.sof output_files/agilex5_dk_a5e065bb32aes1_rped_ghrd.rbf
     ```
 
-# Design Verification Steps
- 1. Run sanity test:
-
-    ```
-    cd a5e065bb32aes1_pdk/verification/scripts/itf
-    arc shell osc_dv/2021WW37 vcs-vcsmx-lic/vrtn-dev,synopsys_dc/R-2020.09-SP3,acdskit-rtl/24.3,avalon_vip/13.1/1,devmain/1.0,devacds/23.4,synopsys_vip_common/vip_Q-2020.03A,p4/psgeng,perl/5.8.8,testutils/23.4,regutils/23.4,itf/23.4,altuvm/0.9p8,synopsys_verdi/R-2020.12-SP2,vcs/R-2020.12-SP2-6,python_altera/2.7.3b/1.0,flow/nb/norm-acds-pipe-dv-rgr,easic_etools/13.3,cygwin/2.9.0
-    export REG_LOCAL_ROOT_DIR_PATH=<WORKING_DIRECTORY>/applications.fpga.soc.agilex5-ed-pcie-rp/src/hw/a5e065bb32aes1_pdk/verification
-    reg_exe --localr --testname=sysrp_sanity_test --seed=1 --dump_on=1 --uvm_verbosity=HIGH
-    ```
-
 # Steps to Migrate Design from Gen4x4 to Gen3x4
  _Note: To change QSF OPN setting to -6s device, replace: set_global_assignment -name DEVICE A5ED065BB32AE4SR0 with set_global_assignment -name DEVICE A5ED065BB32AE6SR0_
  
