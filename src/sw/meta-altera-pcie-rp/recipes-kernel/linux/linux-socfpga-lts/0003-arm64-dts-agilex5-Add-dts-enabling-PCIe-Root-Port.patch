@@ -1,0 +1,55 @@
+From 3d3c7b566c08c32f1e8ca565b47d0a217e5f693e Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Sun, 15 Mar 2026 23:13:14 -0700
+Subject: [PATCH] arm64: dts: agilex5: Add dts enabling PCIe Root Port
+
+Add a device tree enabling PCIe Root Port support on
+an Agilex 5 E-series Premium Development Kit.
+
+Upstream-Status: Inappropriate [platform specific]
+Co-developed-by: Matthew Gerlach <matthew.gerlach@linux.intel.com>
+Signed-off-by: Matthew Gerlach <matthew.gerlach@linux.intel.com>
+Co-developed-by: Peter Colberg <peter.colberg@intel.com>
+Signed-off-by: Peter Colberg <peter.colberg@intel.com>
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ arch/arm64/boot/dts/intel/Makefile                 |  1 +
+ .../dts/intel/socfpga_agilex5_pcie_root_port.dts   | 14 ++++++++++++++
+ 2 files changed, 15 insertions(+)
+ create mode 100644 arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dts
+
+diff --git a/arch/arm64/boot/dts/intel/Makefile b/arch/arm64/boot/dts/intel/Makefile
+index dea14e74b13e..f6d661651363 100644
+--- a/arch/arm64/boot/dts/intel/Makefile
++++ b/arch/arm64/boot/dts/intel/Makefile
+@@ -9,6 +9,7 @@ dtb-$(CONFIG_ARCH_INTEL_SOCFPGA) += socfpga_agilex_n6000.dtb \
+ 				socfpga_agilex3_socdk.dtb \
+ 				socfpga_agilex3_socdk_qspi_atfboot.dtb \
+ 				socfpga_agilex3_socdk_sdmmc_atfboot.dtb \
++				socfpga_agilex5_pcie_root_port.dtb \
+ 				socfpga_agilex5_socdk_a0.dtb \
+ 				socfpga_agilex5_socdk.dtb \
+ 				socfpga_agilex5_socdk_013b.dtb \
+diff --git a/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dts b/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dts
+new file mode 100644
+index 000000000000..8b016a95e533
+--- /dev/null
++++ b/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dts
+@@ -0,0 +1,14 @@
++// SPDX-License-Identifier:     GPL-2.0
++/*
++ * Copyright (C) 2024, Intel Corporation
++ */
++#include "socfpga_agilex5_socdk.dts"
++#include "socfpga_agilex5_pcie_root_port.dtsi"
++
++&pcie_0_pcie_aglx {
++	status = "okay";
++};
++
++&pcie_0_msi_irq {
++	status = "okay";
++};
+-- 
+2.34.1
+

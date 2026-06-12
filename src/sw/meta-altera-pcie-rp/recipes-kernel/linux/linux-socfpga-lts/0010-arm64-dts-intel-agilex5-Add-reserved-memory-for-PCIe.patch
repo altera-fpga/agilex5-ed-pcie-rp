@@ -1,0 +1,41 @@
+From 2ccd87bc141fefe8b1270a874b21c695018be6eb Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Sun, 15 Mar 2026 23:31:54 -0700
+Subject: [PATCH] arm64: dts: intel: agilex5: Add reserved memory for PCIe MSI
+ ordering
+
+Reserve a 4 KiB HPS memory region for the FPGA-based PCIe Root Port
+hardware.
+
+The Root Port design uses this buffer to handle MSI ordering by ensuring
+that data written from the FPGA side has reached HPS memory before the
+MSI interrupt is generated.
+
+Mark the region no-map so the memory is not mapped or allocated by
+Linux.
+
+Upstream-Status: Pending [Will be submitted soon]
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+index f2a2bc62878f..3b5ed2fd39d9 100644
+--- a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
++++ b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+@@ -26,6 +26,11 @@ service_reserved: svcbuffer@0 {
+ 			alignment = <0x1000>;
+ 			no-map;
+ 		};
++
++		pcie_rootport_buf: pcie-rootport-buf@9fffff000 {
++			reg = <0x00000009 0xfffff000 0x0 0x1000>;
++			no-map;
++		};
+ 	};
+ 
+ 	cpus {
+-- 
+2.34.1
+

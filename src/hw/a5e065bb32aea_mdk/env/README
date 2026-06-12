@@ -1,0 +1,10 @@
+Please execute the steps present in below README to get resources and setup before running UVM test :
+
+1. Source env.sh and setup.sh to get arc shell with required licences based on configuration.
+  a. For Gen 4x4
+     Go to <$RP_ROOTDIR>/env/g4x4 directory. 
+  -> source env.sh   
+  -> source setup.sh   
+     (Note: may need to source these files in bash mode)
+
+  ** Please see <$RP_ROOTDIR>/verification/scripts/README for steps generate rtl files from ips/qsys, compile, and run simulation

@@ -1,0 +1,210 @@
+From 46bdb8235ada7f1cb328470b29a7eb248ffdba15 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Fri, 22 May 2026 17:12:15 -0700
+Subject: [PATCH] PCI: altera: Add Agilex5 Root Port legacy INTx support
+
+Add legacy INTx interrupt support for the Agilex5 PCIe Root Port.
+
+The Agilex5 Root Port interrupt status register reports endpoint legacy
+INTx events on bits 0-3 and controller-level CFG_AER events on bit 4.
+Create an IRQ domain with separate hwirq mappings for endpoint INTx and
+the Root Port system interrupt, so INTA-D use hwirq 0-3 and CFG_AER uses
+hwirq 4.
+
+Add a Root Port specific map_irq() path so the Root Port service
+interrupt is mapped to the CFG_AER hwirq, while downstream endpoints
+continue to use the standard DT interrupt-map for legacy INTx.
+
+Enable INTx along with CFG_AER for Agilex5 and handle the INTx status
+bits in the Agilex5 chained interrupt handler.
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ .../intel/socfpga_agilex5_pcie_root_port.dtsi | 14 ++--
+ drivers/pci/controller/pcie-altera.c          | 77 +++++++++++++++++--
+ 2 files changed, 80 insertions(+), 11 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dtsi b/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dtsi
+index 7f04e9185727..d668d99e9859 100644
+--- a/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dtsi
++++ b/arch/arm64/boot/dts/intel/socfpga_agilex5_pcie_root_port.dtsi
+@@ -16,7 +16,6 @@ pcie_0_pcie_aglx: pcie@60000000 {
+ 		reg-names = "Txs", "Cra", "Hip";
+ 		interrupt-parent = <&intc>;
+ 		interrupts = <GIC_SPI 0x14 IRQ_TYPE_LEVEL_HIGH>;
+-		interrupt-controller;
+ 		#interrupt-cells = <0x1>;
+ 		device_type = "pci";
+ 		bus-range = <0x0 0xff>;
+@@ -31,11 +30,16 @@ pcie_0_pcie_aglx: pcie@60000000 {
+ 		#address-cells = <0x3>;
+ 		#size-cells = <0x2>;
+ 		interrupt-map-mask = <0x0 0x0 0x0 0x7>;
+-		interrupt-map = <0x0 0x0 0x0 0x1 &pcie_0_pcie_aglx 0x1>,
+-				<0x0 0x0 0x0 0x2 &pcie_0_pcie_aglx 0x2>,
+-				<0x0 0x0 0x0 0x3 &pcie_0_pcie_aglx 0x3>,
+-				<0x0 0x0 0x0 0x4 &pcie_0_pcie_aglx 0x4>;
++		interrupt-map = <0x0 0x0 0x0 0x1 &pcie_intc 0x1>,
++				<0x0 0x0 0x0 0x2 &pcie_intc 0x2>,
++				<0x0 0x0 0x0 0x3 &pcie_intc 0x3>,
++				<0x0 0x0 0x0 0x4 &pcie_intc 0x4>;
+ 		status = "disabled";
++		pcie_intc: legacy-interrupt-controller {
++				interrupt-controller;
++				#address-cells = <0>;
++				#interrupt-cells = <1>;
++		};
+ 	};
+ 
+ 	pcie_0_msi_irq: msi@20018080 {
+diff --git a/drivers/pci/controller/pcie-altera.c b/drivers/pci/controller/pcie-altera.c
+index 64d112c2e2f5..664080f0f318 100644
+--- a/drivers/pci/controller/pcie-altera.c
++++ b/drivers/pci/controller/pcie-altera.c
+@@ -122,6 +122,11 @@
+ /* Performance Monitor Registers */
+ #define PCIE_ALTERA_PERFMON_BASE        0x800
+ #define PCIE_ALTERA_PERFMON_END         0xbff
++/* Legacy INTx Registers */
++#define AGLX_INTX_STATUS_ALL		GENMASK(3, 0)
++#define AGLX_INTX_ENA_ALL		GENMASK(3, 0)
++#define AGLX_SYS_IRQ                    PCI_NUM_INTX
++#define AGLX_NUM_IRQS                   (PCI_NUM_INTX + 1)
+ 
+ enum altera_pcie_version {
+ 	ALTERA_PCIE_V1 = 0,
+@@ -829,6 +834,28 @@ static const struct irq_domain_ops intx_domain_ops = {
+ 	.xlate = pci_irqd_intx_xlate,
+ };
+ 
++static int altera_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
++{
++        struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
++        struct altera_pcie *pcie = pci_host_bridge_priv(host);
++
++        /*
++         * For Agilex5/V4, keep Root Port's service interrupts
++         * such as CFG_AER separate from endpoint INTx.
++         */
++        if (pcie->pcie_data->version == ALTERA_PCIE_V4 &&
++	    pci_is_root_bus(dev->bus) &&
++            pci_is_pcie(dev) &&
++            pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
++                return irq_create_mapping(pcie->irq_domain, AGLX_SYS_IRQ);
++
++        /*
++         * Downstream endpoints use the normal PCI INTx mapping from DT:
++         * INTA-D -> hwirq 0-3.
++         */
++        return of_irq_parse_and_map_pci(dev, slot, pin);
++}
++
+ static void altera_pcie_isr(struct irq_desc *desc)
+ {
+ 	struct irq_chip *chip = irq_desc_get_chip(desc);
+@@ -941,8 +968,10 @@ static void aglx5_isr(struct irq_desc *desc)
+ 	struct irq_chip *chip = irq_desc_get_chip(desc);
+ 	struct altera_pcie *pcie;
+ 	struct device *dev;
+-	u32 status = 0;
++	unsigned long intx_status;
++	unsigned long bit;
+ 	int ret;
++	u32 status = 0;
+ 
+ 	chained_irq_enter(chip, desc);
+ 	pcie = irq_desc_get_handler_data(desc);
+@@ -955,8 +984,27 @@ static void aglx5_isr(struct irq_desc *desc)
+ 		goto out;
+ 	}
+ 
++	intx_status = status & AGLX_INTX_STATUS_ALL;
++	if (intx_status) {
++		for_each_set_bit(bit, &intx_status, PCI_NUM_INTX) {
++			/* clear INTx interrupt */
++			/* W1C: clear the handled bit */
++			ret = aglx5_indirect_writel(pcie,
++						    pcie->pcie_data->port_irq_status_offset,
++						    BIT(bit));
++			if (ret) {
++				dev_err(dev, "timeout clearing INTX IRQ status, masking IRQ\n");
++				disable_irq_nosync(pcie->irq);
++				goto out;
++			}
++			ret = generic_handle_domain_irq(pcie->irq_domain, bit);
++			if (ret)
++				dev_err_ratelimited(dev, "unexpected IRQ, INT%c\n", 'A' + (char)bit);
++		}
++	}
++
+ 	if (status & CFG_AER) {
+-		ret = generic_handle_domain_irq(pcie->irq_domain, 0);
++		ret = generic_handle_domain_irq(pcie->irq_domain, AGLX_SYS_IRQ);
+ 		if (ret)
+ 			dev_err_ratelimited(dev, "unexpected IRQ\n");
+ 
+@@ -977,10 +1025,16 @@ static void aglx5_isr(struct irq_desc *desc)
+ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
+ {
+ 	struct device *dev = &pcie->pdev->dev;
+-
++	struct device_node *node = dev->of_node;
+ 	/* Setup INTx */
+-	pcie->irq_domain = irq_domain_create_linear(dev_fwnode(dev), PCI_NUM_INTX,
+-					&intx_domain_ops, pcie);
++	struct device_node *legacy_intc_np = of_get_child_by_name(node, "legacy-interrupt-controller");
++	if (!legacy_intc_np) {
++		dev_err(dev, "Failed finding legacy intr controller node\n");
++		return -ENODEV;
++	}
++	pcie->irq_domain = irq_domain_add_linear(legacy_intc_np, AGLX_NUM_IRQS,
++						 &intx_domain_ops, pcie);
++	of_node_put(legacy_intc_np);
+ 	if (!pcie->irq_domain) {
+ 		dev_err(dev, "Failed to get a INTx IRQ domain\n");
+ 		return -ENOMEM;
+@@ -991,6 +1045,9 @@ static int altera_pcie_init_irq_domain(struct altera_pcie *pcie)
+ 
+ static void altera_pcie_disable_irq(struct altera_pcie *pcie)
+ {
++	struct device *dev = &pcie->pdev->dev;
++	int ret;
++
+ 	if (pcie->pcie_data->version == ALTERA_PCIE_V1 ||
+ 	    pcie->pcie_data->version == ALTERA_PCIE_V2) {
+ 		/* Disable all P2A interrupts */
+@@ -1000,6 +1057,13 @@ static void altera_pcie_disable_irq(struct altera_pcie *pcie)
+ 		writel(0, pcie->hip_base +
+ 			  pcie->pcie_data->port_conf_offset +
+ 			  pcie->pcie_data->port_irq_enable_offset);
++	} else if (pcie->pcie_data->version == ALTERA_PCIE_V4) {
++                ret = aglx5_indirect_writel(pcie,
++                                            pcie->pcie_data->port_irq_enable_offset,
++                                            0);
++                if (ret) {
++                        dev_err(dev, "Failed to disable IRQ\n");
++                }
+ 	}
+ }
+ 
+@@ -1255,7 +1319,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
+ 	} else if (pcie->pcie_data->version == ALTERA_PCIE_V4) {
+ 		ret = aglx5_indirect_writel(pcie,
+ 					    pcie->pcie_data->port_irq_enable_offset,
+-					    CFG_AER);
++					    (CFG_AER | AGLX_INTX_ENA_ALL));
+ 		if (ret) {
+ 			dev_err(dev, "Failed to enable AER IRQ\n");
+ 			goto err_teardown_irq;
+@@ -1277,6 +1341,7 @@ static int altera_pcie_probe(struct platform_device *pdev)
+ 	bridge->sysdata = pcie;
+ 	bridge->busnr = pcie->root_bus_nr;
+ 	bridge->ops = &altera_pcie_ops;
++	bridge->map_irq = altera_pcie_map_irq;
+ 
+ 	ret = pci_host_probe(bridge);
+ 	if (ret)
+-- 
+2.34.1
+

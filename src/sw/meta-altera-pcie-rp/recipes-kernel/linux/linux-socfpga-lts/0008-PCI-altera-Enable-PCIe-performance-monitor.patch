@@ -1,0 +1,33 @@
+From 0380ad2fbca9c9dd2b99123b4e462c4db8d5c5b1 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Sun, 15 Mar 2026 23:28:16 -0700
+Subject: [PATCH] PCI: altera: Enable PCIe performance monitor
+
+Enable the PCIe performance monitor block during Altera PCIe controller
+probe so the hardware counters can be used for traffic analysis and
+debug.
+
+Upstream-Status: Pending [Will be submitted soon]
+Co-developed-by: Peter Colberg <peter.colberg@intel.com>
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/pci/controller/pcie-altera.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/drivers/pci/controller/pcie-altera.c b/drivers/pci/controller/pcie-altera.c
+index 98930100509b..64d112c2e2f5 100644
+--- a/drivers/pci/controller/pcie-altera.c
++++ b/drivers/pci/controller/pcie-altera.c
+@@ -1269,6 +1269,9 @@ static int altera_pcie_probe(struct platform_device *pdev)
+ 			ret = PTR_ERR(pcie->regmap);
+ 			goto err_teardown_irq;
+ 		}
++
++		/* enable all performance counters */
++		writel(1, (pcie->controller_base + PCIE_ALTERA_PERFMON_BASE));
+ 	}
+ 
+ 	bridge->sysdata = pcie;
+-- 
+2.34.1
+

@@ -1,0 +1,31 @@
+From 242268256545ef7cc6dfcf29d899007776a67038 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Tue, 2 Jun 2026 08:37:25 -0700
+Subject: [PATCH] Move msi irq affinity to A76
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/pci/controller/pcie-altera-msi.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/drivers/pci/controller/pcie-altera-msi.c b/drivers/pci/controller/pcie-altera-msi.c
+index ea2ca2e70f20..0622d36a5d23 100644
+--- a/drivers/pci/controller/pcie-altera-msi.c
++++ b/drivers/pci/controller/pcie-altera-msi.c
+@@ -244,6 +244,12 @@ static int altera_msi_probe(struct platform_device *pdev)
+ 	}
+ 
+ 	irq_set_chained_handler_and_data(msi->irq, altera_msi_isr, msi);
++	/*
++	 * The MCDMA MSI bridge aggregates all PCIe MSI vectors onto a single
++	 * GIC SPI. Pin that line to a Cortex-A76 (CPU2) so NVMe completion
++	 * processing runs on a fast core instead of the boot A55 (CPU0).
++	 */
++	irq_set_affinity(msi->irq, cpumask_of(2));
+ 	platform_set_drvdata(pdev, msi);
+ 
+ 	return 0;
+-- 
+2.34.1
+

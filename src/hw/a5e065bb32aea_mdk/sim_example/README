@@ -1,0 +1,36 @@
+Please execute the below steps before running test(s) in Makefile flow :
+
+1. Source env.sh and setup.sh to get required licences based on arc_resource_list.sh
+  -> source $RP_ROOTDIR/env/g4x4/env.sh   
+  -> source $RP_ROOTDIR/env/g4x4/setup.sh   
+
+//===============================
+// Command to run a single test
+//===============================
+
+1. Below command needs to be run only once to generate RTL files : 
+   a. For Gen 4x4
+      Go to $RP_ROOTDIR/sim_example/scripts/g4x4 
+   -> gmake -f Makefile.mk cmplib 
+
+2. Below are the Makefile targets 
+    build:    compiles the design and the testbench 
+    run  :    executes the simulation 
+
+3. Below are the Makefile options 
+    TESTNAME:    This is a mandatory option to provide the test to be run out of a list of testcases 
+    DUMP:        This option enables the waveform dumping
+    SEED:        This is required to recreate failing scenario seeds 
+    COV:         Enables functional coverage. N/A for now
+
+
+4. Build and run simulation command
+  a. For Gen 4x4 
+     Go to $RP_ROOTDIR/sim_example/scripts/g4x4 
+     gmake -f Makefile.mk build DUMP=1 
+     gmake -f Makefile.mk run TESTNAME=sysrp_sanity_test SEED=123 DUMP=1
+
+     or
+     gmake -f Makefile.mk build DUMP=1 && gmake -f Makefile.mk run TESTNAME=sysrp_sanity_test DUMP=1
+
+=> The simulation runs/results are under <RP_ROOTDIR>/sim_example/run_sim
