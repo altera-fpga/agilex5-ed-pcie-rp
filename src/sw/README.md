@@ -37,28 +37,28 @@ The following targets are currently supported:
  4. OPTIONAL:  CUSTOM GHRD:
 
               a. Copy the generated custom GHRD RBF files (top.hps.rbf and top.core.rbf) in the below path:
-                   $WORKSPACE/src/sw/meta-altera-tsn-sgmii/recipes-bsp/ghrd/files/
+                   $WORKSPACE/src/sw/meta-altera-pcie-rp/recipes-bsp/ghrd/files/
 
                    ```  
                    NOTE: Rename the GHRD top.hps.rbf and top.core.rbf files to match the exact naming convention specified below
                             For Agilex5 MK-A5E065BB32AEA:-
-                                          agilex5_mk_a5e065bb32aes1_gsrd_ghrd.hps.rbf
-                                          agilex5_mk_a5e065bb32aes1_gsrd_ghrd.core.rbf
+                                          agilex5_mk_a5e065bb32aes1_rped_ghrd.hps.rbf
+                                          agilex5_mk_a5e065bb32aes1_rped_ghrd.core.rbf
                    ```
 
               b. Update sha256sum value of the custom hps and core rbf files:
                     ```
                     Note: calculate the sha256sum of the hps and core rbf using the below commands
-                          sha256sum agilex5_mk_a5e065bb32aes1_gsrd_ghrd.hps.rbf
-                          sha256sum agilex5_mk_a5e065bb32aes1_gsrd_ghrd.core.rbf
+                          sha256sum agilex5_mk_a5e065bb32aes1_rped_ghrd.hps.rbf
+                          sha256sum agilex5_mk_a5e065bb32aes1_rped_ghrd.core.rbf
                     ```
 
                     Update the sha256sum values of hps and core rbf got from above commands in the below recipe-
-                        $WORKSPACE/src/sw/meta-altera-tsn-sgmii/recipes-bsp/ghrd/hw-ref-design.bbappend
+                        $WORKSPACE/src/sw/meta-altera-pcie-rp/recipes-bsp/ghrd/hw-ref-design.bbappend
                         ```
                         For Agilex5 MK-A5E065BB32AEA:-
-                        SRC_URI[agilex5_mk_a5e065bb32aes1_gsrd_hps_cfg3.sha256sum] += "<put the above calculated hps sha256sum here>"
-                        SRC_URI[agilex5_mk_a5e065bb32aes1_gsrd_core_cfg3.sha256sum] += "<put the above calculated core sha256sum here>"
+                        SRC_URI[agilex5_mk_a5e065bb32aes1_rped_hps.sha256sum] += "<put the above calculated hps sha256sum here>"
+                        SRC_URI[agilex5_mk_a5e065bb32aes1_rped_core.sha256sum] += "<put the above calculated core sha256sum here>"
                         ```
 
     ```
