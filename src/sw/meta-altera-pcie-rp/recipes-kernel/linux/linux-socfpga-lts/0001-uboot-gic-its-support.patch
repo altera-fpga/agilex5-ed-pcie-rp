@@ -1,0 +1,66 @@
+From 7ea357d363b8c2e90e3516dcbcb7a9298f6c8d5d Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Tue, 25 Aug 2026 06:34:43 +0530
+Subject: [PATCH] uboot gic its support
+
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ .../files/0001-Add-GIC-ITS-support.patch      | 29 +++++++++++++++++++
+ recipes-bsp/u-boot/u-boot-socfpga_%.bbappend  |  5 ++++
+ 2 files changed, 34 insertions(+)
+ create mode 100644 recipes-bsp/u-boot/files/0001-Add-GIC-ITS-support.patch
+
+diff --git a/recipes-bsp/u-boot/files/0001-Add-GIC-ITS-support.patch b/recipes-bsp/u-boot/files/0001-Add-GIC-ITS-support.patch
+new file mode 100644
+index 0000000..3ffd973
+--- /dev/null
++++ b/recipes-bsp/u-boot/files/0001-Add-GIC-ITS-support.patch
+@@ -0,0 +1,29 @@
++From 7d9cc7a7bcdc2d4e746c05437374f9e18df27301 Mon Sep 17 00:00:00 2001
++From: Mahesh Vaidya <mahesh.vaidya@altera.com>
++Date: Tue, 28 Jul 2026 07:57:08 +0530
++Subject: [PATCH] Add GIC ITS support
++
++Upstream-Status: Pending
++Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
++---
++ arch/arm/dts/socfpga_agilex5-u-boot.dtsi | 4 ++++
++ 1 file changed, 4 insertions(+)
++
++diff --git a/arch/arm/dts/socfpga_agilex5-u-boot.dtsi b/arch/arm/dts/socfpga_agilex5-u-boot.dtsi
++index 0f0f457de54..fc1a98af94e 100644
++--- a/arch/arm/dts/socfpga_agilex5-u-boot.dtsi
+++++ b/arch/arm/dts/socfpga_agilex5-u-boot.dtsi
++@@ -80,6 +80,10 @@
++ 					<0x00000414 0x00018000 0xffffffff>,
++ 					<0x00000418 0x00000000 0x000000ff>,
++ 					<0x00000410 0xc0e00200 0xc1f03e1f>,
+++					/* DII2_GICREGS */
+++					<0x00000424 0x0001d000 0xffffffff>,
+++					<0x00000428 0x00000000 0x000000ff>,
+++					<0x00000420 0xc0800400 0xc1f03e1f>,
++ 					/* NCAIU0_LWSOC2FPGA */
++ 					<0x00000444 0x00020000 0xffffffff>,
++ 					<0x00000448 0x00000000 0x000000ff>,
++-- 
++2.25.1
++
+diff --git a/recipes-bsp/u-boot/u-boot-socfpga_%.bbappend b/recipes-bsp/u-boot/u-boot-socfpga_%.bbappend
+index 327bec2..96a37b8 100644
+--- a/recipes-bsp/u-boot/u-boot-socfpga_%.bbappend
++++ b/recipes-bsp/u-boot/u-boot-socfpga_%.bbappend
+@@ -17,6 +17,11 @@ DEPENDS:append:stratix10_htile = " arm-trusted-firmware bash u-boot-socfpga-scr"
+ DEPENDS:append:arria10 = " hw-ref-design"
+ DEPENDS:append:n5x = " arm-trusted-firmware bash u-boot-socfpga-scr"
+ 
++SRC_URI:append = " \
++             file://0001-Add-GIC-ITS-support.patch \
++           "
++
++
+ inherit deploy
+ 
+ do_compile[deptask] = "do_deploy"
+-- 
+2.25.1
+

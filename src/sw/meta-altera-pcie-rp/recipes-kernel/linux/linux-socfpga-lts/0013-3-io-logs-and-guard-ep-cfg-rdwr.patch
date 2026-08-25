@@ -1,0 +1,102 @@
+From 23ac1e551f571253be4cba5d5105fc51995f75ff Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Mon, 3 Aug 2026 09:51:09 +0530
+Subject: [PATCH] io logs and guard ep cfg rdwr
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/nvme/host/pci.c              | 37 +++++++++++++++++++++-------
+ drivers/pci/controller/pcie-altera.c | 14 +++++++++++
+ 2 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index f2f3ab9485b6..f07af61816d8 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -591,6 +591,18 @@ static inline void nvme_sq_copy_cmd(struct nvme_queue *nvmeq,
+ 		pr_err("ITSDBG-NVME admin SUBMIT #%lu opcode=0x%x cid=%u slot=%u sqe@0x%llx\n",
+ 		       ++n_sub, cmd->common.opcode, cmd->common.command_id,
+ 		       nvmeq->sq_tail, (unsigned long long)sqe_addr);
++	} else {
++		/* io: sample 1 in N to avoid console flooding */
++		static unsigned long n_io_sub;
++		if (!(++n_io_sub % 50) || (n_io_sub > 190)) {
++			u64 sqe_addr = nvmeq->sq_dma_addr +
++				       ((u64)nvmeq->sq_tail << nvmeq->sqes);
++
++			pr_err("ITSDBG-NVME io SUBMIT qid=%d n=%lu opcode=0x%x cid=%u slot=%u sqe@0x%llx\n",
++			       nvmeq->qid, n_io_sub, cmd->common.opcode,
++			       cmd->common.command_id, nvmeq->sq_tail,
++			       (unsigned long long)sqe_addr);
++		}
+ 	}
+ 	memcpy(nvmeq->sq_cmds + (nvmeq->sq_tail << nvmeq->sqes),
+ 		absolute_pointer(cmd), sizeof(*cmd));
+@@ -1424,15 +1436,22 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ 		 * the cqe requires a full read memory barrier
+ 		 */
+ 		dma_rmb();
+-        	if (nvmeq->qid == 0) {
+-            		struct nvme_completion *cqe = &nvmeq->cqes[nvmeq->cq_head];
+-
+-            		pr_err("ITSDBG-NVME COMPLETE qid=%d head=%u phase=%u cid=%u status=0x%04x sqhd=%u\n",
+-                   	nvmeq->qid, nvmeq->cq_head, nvmeq->cq_phase,
+-                   		le16_to_cpu(cqe->command_id),
+-                   		le16_to_cpu(cqe->status),
+-                   		le16_to_cpu(cqe->sq_head));
+-        	}
++		{
++			struct nvme_completion *cqe = &nvmeq->cqes[nvmeq->cq_head];
++			u16 cid = le16_to_cpu(cqe->command_id);
++			u16 st  = le16_to_cpu(cqe->status);
++
++			if (nvmeq->qid == 0) {
++				pr_err("ITSDBG-NVME admin COMPLETE cid=%u status=0x%04x head=%u phase=%u\n",
++			       		cid, st, nvmeq->cq_head, nvmeq->cq_phase);
++			} else if (st & 0xfffe) {
++				/* io: only log completions that carry a non-success
++			 	 * status code (SC/SCT nonzero), which is what you care
++			 	 * about under write-failure. bit0 is phase, so mask it. */
++				pr_err("ITSDBG-NVME io ERROR qid=%d cid=%u status=0x%04x head=%u\n",
++			       		nvmeq->qid, cid, st, nvmeq->cq_head);
++			}
++		}	
+ 		nvme_handle_cqe(nvmeq, iob, nvmeq->cq_head);
+ 		nvme_update_cq_head(nvmeq);
+ 	}
+diff --git a/drivers/pci/controller/pcie-altera.c b/drivers/pci/controller/pcie-altera.c
+index 8e2a59aa7a89..5739ac2d118a 100644
+--- a/drivers/pci/controller/pcie-altera.c
++++ b/drivers/pci/controller/pcie-altera.c
+@@ -575,6 +575,9 @@ static int aglx_rp_write_cfg(struct altera_pcie *pcie, u8 busno,
+ static int aglx_ep_write_cfg(struct altera_pcie *pcie, u8 busno,
+ 			     unsigned int devfn, int where, int size, u32 value)
+ {
++	if (!pcie->pcie_data->ops->get_link_status(pcie))
++		return PCIBIOS_DEVICE_NOT_FOUND;
++
+ 	cra_writel(pcie, ((busno << 8) | devfn), AGLX_BDF_REG);
+ 	if (busno > AGLX_RP_SECONDARY(pcie))
+ 		where |= FIELD_PREP(AGLX_CFG_TARGET, AGLX_CFG_TARGET_TYPE1);
+@@ -597,6 +600,17 @@ static int aglx_ep_write_cfg(struct altera_pcie *pcie, u8 busno,
+ static int aglx_ep_read_cfg(struct altera_pcie *pcie, u8 busno,
+ 			    unsigned int devfn, int where, int size, u32 *value)
+ {
++	/*
++	 * If the link is not data-link-active (down or in recovery), the EP
++	 * config space is unreachable and a CRA read will take a synchronous
++	 * external abort that is fatal in the AER error-logging path. Return
++	 * all-ones (PCI "no device" convention) instead of touching hardware.
++	 */
++	if (!pcie->pcie_data->ops->get_link_status(pcie)) {
++		*value = ~0U;
++		return PCIBIOS_DEVICE_NOT_FOUND;
++	}
++
+ 	cra_writel(pcie, ((busno << 8) | devfn), AGLX_BDF_REG);
+ 	if (busno > AGLX_RP_SECONDARY(pcie))
+ 		where |= FIELD_PREP(AGLX_CFG_TARGET, AGLX_CFG_TARGET_TYPE1);
+-- 
+2.25.1
+

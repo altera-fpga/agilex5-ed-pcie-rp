@@ -1,0 +1,101 @@
+From 470422de4e3c46a77bfcac88f3dcb8faf7513413 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Thu, 23 Jul 2026 09:19:38 +0530
+Subject: [PATCH] Add CQE reserved memory
+
+Upstream-Status: Inappropriate
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ .../arm64/boot/dts/intel/socfpga_agilex5.dtsi |  5 ++++
+ drivers/nvme/host/pci.c                       | 27 ++++++++++++++++---
+ 2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+index 7df24f29ca75..7bf740a95c9d 100644
+--- a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
++++ b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+@@ -31,6 +31,11 @@ pcie_rootport_buf: pcie-rootport-buf@9fffff000 {
+ 			reg = <0x00000009 0xfffff000 0x0 0x1000>;
+ 			no-map;
+ 		};
++
++		nvme_dbg: nvme-dbg@c0000000 {
++			reg = <0x0 0xc0000000 0x0 0x00100000>;   /* 1 MB */
++			no-map;
++		};
+ 	};
+ 
+ 	cpus {
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 5f7d0f616e0c..1b9cc0960be6 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -1374,6 +1374,8 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ 
+ 	while (nvme_cqe_pending(nvmeq)) {
+ 		found = true;
++		pr_err("ITSDBG-NVME_POLL_CQ found qid=%d head=%u phase=%u\n",
++                               nvmeq->qid, nvmeq->cq_head, nvmeq->cq_phase);
+ 		/*
+ 		 * load-load control dependency between phase and the rest of
+ 		 * the cqe requires a full read memory barrier
+@@ -1402,7 +1404,7 @@ static irqreturn_t nvme_irq(int irq, void *data)
+ 		n_handled++;
+ 		if (!rq_list_empty(&iob.req_list))
+ 			nvme_pci_complete_batch(&iob);
+-		if (!(n_handled % 50))
++		//if (!(n_handled % 50))
+ 			pr_err("ITSDBG-NVME qid=%d HANDLED tot=%lu hnd=%lu none=%lu head %u->%u phase=%u\n",
+ 			       nvmeq->qid, n_total, n_handled, n_none,
+ 			       head_before, nvmeq->cq_head, nvmeq->cq_phase);
+@@ -1801,7 +1803,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
+ 
+ static void nvme_free_queue(struct nvme_queue *nvmeq)
+ {
+-	dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
++	if (nvmeq->qid == 0)
++		iounmap((void __iomem *)nvmeq->cqes);
++	else
++		dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
+ 				(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
+ 	if (!nvmeq->sq_cmds)
+ 		return;
+@@ -1917,7 +1922,7 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
+ 		return -ENOMEM;
+ 	return 0;
+ }
+-
++#define ITSDBG_CQ_PHYS	0xc0000000ULL
+ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
+ {
+ 	struct nvme_queue *nvmeq = &dev->queues[qid];
+@@ -1927,11 +1932,25 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
+ 
+ 	nvmeq->sqes = qid ? dev->io_sqes : NVME_ADM_SQES;
+ 	nvmeq->q_depth = depth;
++	if (qid == 0) {
++		nvmeq->cq_dma_addr = ITSDBG_CQ_PHYS;
++		nvmeq->cqes = (struct nvme_completion __force *)
++			ioremap_wc(ITSDBG_CQ_PHYS, CQ_SIZE(nvmeq));
++		if (!nvmeq->cqes)
++			goto free_nvmeq;
++		memset_io((void __iomem *)nvmeq->cqes, 0, CQ_SIZE(nvmeq));
++
++		pr_err("ITSDBG-NVME admin CQ PINNED span 0x%llx..0x%llx depth=%u slot2@0x%llx\n",
++		       (unsigned long long)nvmeq->cq_dma_addr,
++		       (unsigned long long)(nvmeq->cq_dma_addr + CQ_SIZE(nvmeq) - 1),
++		       depth,
++		       (unsigned long long)(nvmeq->cq_dma_addr + 32));
++	} else {
+ 	nvmeq->cqes = dma_alloc_coherent(dev->dev, CQ_SIZE(nvmeq),
+ 					 &nvmeq->cq_dma_addr, GFP_KERNEL);
+ 	if (!nvmeq->cqes)
+ 		goto free_nvmeq;
+-
++	}
+ 	if (nvme_alloc_sq_cmds(dev, nvmeq, qid))
+ 		goto free_cqdma;
+ 
+-- 
+2.25.1
+

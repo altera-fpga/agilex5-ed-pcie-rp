@@ -1,0 +1,273 @@
+From d4df5944d4f63208c839949df7d817621ef7dfd1 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Fri, 31 Jul 2026 07:20:01 +0530
+Subject: [PATCH] pin CQE and SQE
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ .../arm64/boot/dts/intel/socfpga_agilex5.dtsi |  10 ++
+ drivers/nvme/host/pci.c                       | 129 ++++++++++++++++--
+ 2 files changed, 131 insertions(+), 8 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+index 7df24f29ca75..1dcff57d7efa 100644
+--- a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
++++ b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+@@ -31,6 +31,16 @@ pcie_rootport_buf: pcie-rootport-buf@9fffff000 {
+ 			reg = <0x00000009 0xfffff000 0x0 0x1000>;
+ 			no-map;
+ 		};
++
++		nvme_dbg: nvme-dbg@c0000000 {
++			reg = <0x0 0xc0000000 0x0 0x00100000>;   /* 1 MB */
++			no-map;
++		};
++
++		nvme_dbg_sq: nvme-dbg-sq@c0100000 {
++			reg = <0x0 0xc0100000 0x0 0x00100000>;   /* admin SQ, 1 MB */
++			no-map;
++		};
+ 	};
+ 
+ 	cpus {
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 72fb675a696f..5d059cc4fa3c 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -567,7 +567,16 @@ static inline void nvme_write_sq_db(struct nvme_queue *nvmeq, bool write_sq)
+ 
+ 	if (nvme_dbbuf_update_and_check_event(nvmeq->sq_tail,
+ 			nvmeq->dbbuf_sq_db, nvmeq->dbbuf_sq_ei))
++	{
++		if (nvmeq->qid == 0) {
++        		static unsigned long n_db;
++        		n_db++;
++        		pr_err("ITSDBG-NVME admin SQ DOORBELL #%lu tail=%u @db_off=0x%lx\n",
++               			n_db, nvmeq->sq_tail,
++               		(unsigned long)((u8 *)nvmeq->q_db - (u8 *)nvmeq->dev->bar));
++    		}
+ 		writel(nvmeq->sq_tail, nvmeq->q_db);
++	}
+ 	nvmeq->last_sq_tail = nvmeq->sq_tail;
+ }
+ 
+@@ -1207,6 +1216,7 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
+ static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
+ {
+ 	struct request *req;
++	struct nvme_command *last_cmd = NULL;
+ 
+ 	if (rq_list_empty(rqlist))
+ 		return;
+@@ -1214,9 +1224,19 @@ static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
+ 	spin_lock(&nvmeq->sq_lock);
+ 	while ((req = rq_list_pop(rqlist))) {
+ 		struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+-
++		struct nvme_command *last_cmd = NULL;
+ 		nvme_sq_copy_cmd(nvmeq, &iod->cmd);
+ 	}
++	if (nvmeq->qid == 0 && last_cmd) {
++        	u64 sqe_addr = nvmeq->sq_dma_addr +
++                       		(u64)nvmeq->sq_tail * (1 << NVME_ADM_SQES);
++        	static unsigned long n_sub;
++
++        	n_sub++;
++        	pr_err("ITSDBG-NVME admin SUBMIT #%lu opcode=0x%x cid=%u sq_tail=%u sqe@0x%llx\n",
++               		n_sub, last_cmd->common.opcode, last_cmd->common.command_id,
++               		nvmeq->sq_tail, (unsigned long long)sqe_addr);
++    	}
+ 	nvme_write_sq_db(nvmeq, true);
+ 	spin_unlock(&nvmeq->sq_lock);
+ }
+@@ -1285,6 +1305,27 @@ static inline bool nvme_cqe_pending(struct nvme_queue *nvmeq)
+ 	return (le16_to_cpu(READ_ONCE(hcqe->status)) & 1) == nvmeq->cq_phase;
+ }
+ 
++#if 1
++static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
++{
++       u16 head = nvmeq->cq_head;
++       static unsigned long n_call, n_write;
++
++       n_call++;
++
++       if (nvme_dbbuf_update_and_check_event(head, nvmeq->dbbuf_cq_db,
++                                             nvmeq->dbbuf_cq_ei)) {
++               n_write++;
++               writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
++       }
++
++       if (!(n_call % 50))
++               pr_err("ITSDBG-NVME qid=%d cq_db call=%lu write=%lu head=%u dbbuf=%d\n",
++                      nvmeq->qid, n_call, n_write, head,
++                      nvmeq->dbbuf_cq_db ? 1 : 0);
++}
++#else
++
+ static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
+ {
+ 	u16 head = nvmeq->cq_head;
+@@ -1293,7 +1334,7 @@ static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
+ 					      nvmeq->dbbuf_cq_ei))
+ 		writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
+ }
+-
++#endif
+ static inline struct blk_mq_tags *nvme_queue_tagset(struct nvme_queue *nvmeq)
+ {
+ 	if (!nvmeq->qid)
+@@ -1355,6 +1396,8 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ 
+ 	while (nvme_cqe_pending(nvmeq)) {
+ 		found = true;
++		pr_err("ITSDBG-NVME_POLL_CQ found qid=%d head=%u phase=%u\n",
++                               nvmeq->qid, nvmeq->cq_head, nvmeq->cq_phase);
+ 		/*
+ 		 * load-load control dependency between phase and the rest of
+ 		 * the cqe requires a full read memory barrier
+@@ -1368,7 +1411,36 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ 		nvme_ring_cq_doorbell(nvmeq);
+ 	return found;
+ }
++#if 1
++static irqreturn_t nvme_irq(int irq, void *data)
++{
++       struct nvme_queue *nvmeq = data;
++       static unsigned long n_total, n_handled, n_none;
++       DEFINE_IO_COMP_BATCH(iob);
++       u16 head_before = nvmeq->cq_head;
+ 
++       n_total++;
++       if (nvme_poll_cq(nvmeq, &iob)) {
++		n_handled++;
++		if (!rq_list_empty(&iob.req_list))
++			nvme_pci_complete_batch(&iob);
++		//if (!(n_handled % 50))
++			pr_err("ITSDBG-NVME qid=%d HANDLED tot=%lu hnd=%lu none=%lu head %u->%u phase=%u\n",
++			       nvmeq->qid, n_total, n_handled, n_none,
++			       head_before, nvmeq->cq_head, nvmeq->cq_phase);
++                return IRQ_HANDLED;
++        }
++
++       n_none++;
++       if (!(n_none % 50))
++               pr_err("ITSDBG-NVME qid=%d NONE tot=%lu hnd=%lu none=%lu head=%u phase=%u cqe_status=0x%04x\n",
++                      nvmeq->qid, n_total, n_handled, n_none,
++                      nvmeq->cq_head, nvmeq->cq_phase,
++                      le16_to_cpu(nvmeq->cqes[nvmeq->cq_head].status));
++
++        return IRQ_NONE;
++}
++#else
+ static irqreturn_t nvme_irq(int irq, void *data)
+ {
+ 	struct nvme_queue *nvmeq = data;
+@@ -1381,7 +1453,7 @@ static irqreturn_t nvme_irq(int irq, void *data)
+ 	}
+ 	return IRQ_NONE;
+ }
+-
++#endif
+ static irqreturn_t nvme_irq_check(int irq, void *data)
+ {
+ 	struct nvme_queue *nvmeq = data;
+@@ -1749,7 +1821,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
+ 
+ static void nvme_free_queue(struct nvme_queue *nvmeq)
+ {
+-	dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
++	if (nvmeq->qid == 0)
++		iounmap((void __iomem *)nvmeq->cqes);
++	else
++		dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
+ 				(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
+ 	if (!nvmeq->sq_cmds)
+ 		return;
+@@ -1758,8 +1833,14 @@ static void nvme_free_queue(struct nvme_queue *nvmeq)
+ 		pci_free_p2pmem(to_pci_dev(nvmeq->dev->dev),
+ 				nvmeq->sq_cmds, SQ_SIZE(nvmeq));
+ 	} else {
+-		dma_free_coherent(nvmeq->dev->dev, SQ_SIZE(nvmeq),
+-				nvmeq->sq_cmds, nvmeq->sq_dma_addr);
++		if (nvmeq->qid == 0) {
++        		iounmap((void __iomem *)nvmeq->cqes);
++        		if (nvmeq->sq_cmds)
++            			iounmap((void __iomem *)nvmeq->sq_cmds);
++    		} else {
++			dma_free_coherent(nvmeq->dev->dev, SQ_SIZE(nvmeq),
++					  nvmeq->sq_cmds, nvmeq->sq_dma_addr);
++		}
+ 	}
+ }
+ 
+@@ -1840,11 +1921,29 @@ static int nvme_cmb_qdepth(struct nvme_dev *dev, int nr_io_queues,
+ 	return q_depth;
+ }
+ 
++#define ITSDBG_SQ_PHYS  0xc0100000ULL
+ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
+ 				int qid)
+ {
+ 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+ 
++	if (qid == 0) {
++        	/* ITSDBG: pin admin SQ to a fixed address for STP correlation */
++        	nvmeq->sq_dma_addr = ITSDBG_SQ_PHYS;
++        	nvmeq->sq_cmds = (void __force *)
++            	ioremap_wc(ITSDBG_SQ_PHYS, SQ_SIZE(nvmeq));
++        	if (!nvmeq->sq_cmds)
++            		return -ENOMEM;
++        	memset_io((void __iomem *)nvmeq->sq_cmds, 0, SQ_SIZE(nvmeq));
++
++        	pr_err("ITSDBG-NVME admin SQ PINNED base=0x%llx span 0x%llx..0x%llx entry_sz=%u\n",
++               		(unsigned long long)nvmeq->sq_dma_addr,
++               		(unsigned long long)nvmeq->sq_dma_addr,
++               		(unsigned long long)(nvmeq->sq_dma_addr + SQ_SIZE(nvmeq) - 1),
++               		(unsigned)(1 << NVME_ADM_SQES));
++        	return 0;
++    	}
++
+ 	if (qid && dev->cmb_use_sqes && (dev->cmbsz & NVME_CMBSZ_SQS)) {
+ 		nvmeq->sq_cmds = pci_alloc_p2pmem(pdev, SQ_SIZE(nvmeq));
+ 		if (nvmeq->sq_cmds) {
+@@ -1865,7 +1964,7 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
+ 		return -ENOMEM;
+ 	return 0;
+ }
+-
++#define ITSDBG_CQ_PHYS	0xc0000000ULL
+ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
+ {
+ 	struct nvme_queue *nvmeq = &dev->queues[qid];
+@@ -1875,11 +1974,25 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
+ 
+ 	nvmeq->sqes = qid ? dev->io_sqes : NVME_ADM_SQES;
+ 	nvmeq->q_depth = depth;
++	if (qid == 0) {
++		nvmeq->cq_dma_addr = ITSDBG_CQ_PHYS;
++		nvmeq->cqes = (struct nvme_completion __force *)
++			ioremap_wc(ITSDBG_CQ_PHYS, CQ_SIZE(nvmeq));
++		if (!nvmeq->cqes)
++			goto free_nvmeq;
++		memset_io((void __iomem *)nvmeq->cqes, 0, CQ_SIZE(nvmeq));
++
++		pr_err("ITSDBG-NVME admin CQ PINNED span 0x%llx..0x%llx depth=%u slot2@0x%llx\n",
++		       (unsigned long long)nvmeq->cq_dma_addr,
++		       (unsigned long long)(nvmeq->cq_dma_addr + CQ_SIZE(nvmeq) - 1),
++		       depth,
++		       (unsigned long long)(nvmeq->cq_dma_addr + 32));
++	} else {
+ 	nvmeq->cqes = dma_alloc_coherent(dev->dev, CQ_SIZE(nvmeq),
+ 					 &nvmeq->cq_dma_addr, GFP_KERNEL);
+ 	if (!nvmeq->cqes)
+ 		goto free_nvmeq;
+-
++	}
+ 	if (nvme_alloc_sq_cmds(dev, nvmeq, qid))
+ 		goto free_cqdma;
+ 
+-- 
+2.25.1
+

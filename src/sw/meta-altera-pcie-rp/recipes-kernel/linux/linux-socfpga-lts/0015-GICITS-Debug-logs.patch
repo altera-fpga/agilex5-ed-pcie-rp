@@ -1,0 +1,351 @@
+From 7efb6520c8c19573b9d626c8d80b72f1a11ae445 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Wed, 22 Jul 2026 09:00:11 +0530
+Subject: [PATCH] GICITS Debug logs
+
+Upstream-Status: Inappropriate
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/irqchip/irq-gic-v3-its.c | 104 ++++++++++++++++++++++++++++++-
+ drivers/irqchip/irq-gic-v3.c     |   5 ++
+ drivers/nvme/host/pci.c          |  54 +++++++++++++++-
+ drivers/pci/msi/msi.c            |  19 ++++++
+ 4 files changed, 179 insertions(+), 3 deletions(-)
+
+diff --git a/drivers/irqchip/irq-gic-v3-its.c b/drivers/irqchip/irq-gic-v3-its.c
+index 6f35bc759138..de6ae5a6ec94 100644
+--- a/drivers/irqchip/irq-gic-v3-its.c
++++ b/drivers/irqchip/irq-gic-v3-its.c
+@@ -756,6 +756,10 @@ static struct its_collection *its_build_mapti_cmd(struct its_node *its,
+ 	its_encode_collection(cmd, col->col_id);
+ 
+ 	its_fixup_cmd(cmd);
++	pr_err("ITSDBG: MAPTI dev_id=0x%x event=%u lpi=%u col=%u\n",
++              desc->its_mapti_cmd.dev->device_id,
++              desc->its_mapti_cmd.event_id,
++              desc->its_mapti_cmd.phys_id, col->col_id);
+ 
+ 	return valid_col(col);
+ }
+@@ -1197,8 +1201,25 @@ static int its_wait_for_range_completion(struct its_node *its,
+ 
+ 		count--;
+ 		if (!count) {
+-			pr_err_ratelimited("ITS queue timeout (%llu %llu)\n",
+-					   to_idx, linear_idx);
++			{
++                               u32 statusr = readl_relaxed(its->base + 0x0040); /* GITS_STATUSR */
++                               u32 creadr  = readl_relaxed(its->base + GITS_CREADR);
++                               u32 cwriter = readl_relaxed(its->base + GITS_CWRITER);
++                               u32 off = creadr & ~0x1FU;
++                               struct its_cmd_block *fc =
++                                       (struct its_cmd_block *)((u8 *)its->cmd_base + off);
++
++                               pr_err("ITS queue timeout (%llu %llu)\n", to_idx, linear_idx);
++                               pr_err("ITSDBG: STATUSR=0x%08x CREADR=0x%08x CWRITER=0x%08x stalled=%d\n",
++                                      statusr, creadr, cwriter, !!(creadr & 1));
++                               pr_err("ITSDBG: stalled cmd @off=0x%x opcode=0x%02x raw=%016llx %016llx %016llx %016llx\n",
++                                      off, (unsigned int)(fc->raw_cmd[0] & 0xff),
++                                      (unsigned long long)fc->raw_cmd[0],
++                                      (unsigned long long)fc->raw_cmd[1],
++                                      (unsigned long long)fc->raw_cmd[2],
++                                      (unsigned long long)fc->raw_cmd[3]);
++                       }
++
+ 			return -1;
+ 		}
+ 		prev_idx = rd_idx;
+@@ -1646,6 +1667,43 @@ static void its_unmask_irq(struct irq_data *d)
+ 		its_vlpi_set_doorbell(d, true);
+ 
+ 	lpi_update_config(d, 0, LPI_PROP_ENABLED);
++#if 0
++       /*
++        * ITSDBG one-shot test: the LPI is now enabled + INV'd. Software-inject
++        * it via the ITS INT command (ITS-internal, NO fabric/MSI write at all).
++        * If the ITSDBG-GIC "LPI ... on cpuN" log then fires, the whole
++        * ITS->collection->redistributor->CPU path is healthy and the only
++        * remaining failure is the inbound EP->F2H->ITS write. If it does NOT
++        * fire, the fault is in the ITS tables/enable/collection, not the fabric.
++        */
++       {
++               struct its_device *its_dev = irq_data_get_irq_chip_data(d);
++               u32 event = its_get_event_id(d);
++               static bool itsdbg_injected;
++
++               if (!itsdbg_injected && its_dev->device_id == 0x100 && event == 0) {
++                       itsdbg_injected = true;
++                       {
++                               u8 *prop = gic_rdists->prop_table_va;
++                               u8 cfg = prop ? prop[d->hwirq - 8192] : 0xff;
++                               struct its_collection *col =
++                                       dev_event_to_col(its_dev, event);
++
++                               pr_err("ITSDBG: pre-inject lpi=%lu prop_cfg=0x%02x (en=%d prio=0x%02x) col_id=%u col_target=0x%llx\n",
++                                      (unsigned long)d->hwirq, cfg,
++                                      !!(cfg & LPI_PROP_ENABLED), cfg & 0xfc,
++                                      col ? col->col_id : 0xffff,
++                                      col ? (unsigned long long)col->target_address : 0ULL);
++                       }
++                       pr_err("ITSDBG: injecting INT dev=0x%x event=%u (expect an LPI on a cpu)\n",
++                              its_dev->device_id, event);
++                       its_send_int(its_dev, event);
++                       pr_err("ITSDBG: post-inject GITS_STATUSR=0x%08x\n",
++                              readl_relaxed(its_dev->its->base + 0x0040));
++               }
++       }
++#endif
++
+ }
+ 
+ static __maybe_unused u32 its_read_lpi_count(struct irq_data *d, int cpu)
+@@ -1819,6 +1877,12 @@ static void its_irq_compose_msi_msg(struct irq_data *d, struct msi_msg *msg)
+ 	msg->data = its_get_event_id(d);
+ 	msi_msg_set_addr(irq_data_get_msi_desc(d), msg,
+ 			 its_dev->its->get_msi_base(its_dev));
++
++       pr_err("ITSDBG: compose dev_id=0x%x event=%u -> EP MSI-X entry: addr=0x%08x%08x data=0x%x lpi=%lu\n",
++              its_dev->device_id, its_get_event_id(d),
++              msg->address_hi, msg->address_lo, msg->data,
++              (unsigned long)d->hwirq);
++
+ }
+ 
+ static int its_irq_set_irqchip_state(struct irq_data *d,
+@@ -2265,6 +2329,11 @@ static void gic_reset_prop_table(void *va)
+ static struct page *its_allocate_prop_table(gfp_t gfp_flags)
+ {
+ 	struct page *prop_page;
++       /* HSD-quirk gap: the 32bit dma quirk missed the LPI property
++        * table; force it <4GB too or the redistributor PROPBASER drops
++        * bit 35 and reads LPI config from the wrong address. */
++       //if (dma_32bit_flag)
++       //        gfp_flags |= GFP_DMA32;
+ 
+ 	prop_page = its_alloc_pages(gfp_flags,
+ 				    get_order(LPI_PROPBASE_SZ));
+@@ -3044,6 +3113,9 @@ static int its_alloc_collections(struct its_node *its)
+ static struct page *its_allocate_pending_table(gfp_t gfp_flags)
+ {
+ 	struct page *pend_page;
++       /* HSD-quirk gap: same fix for the LPI pending table. */
++       //if (dma_32bit_flag)
++       //        gfp_flags |= GFP_DMA32;
+ 
+ 	pend_page = its_alloc_pages(gfp_flags | __GFP_ZERO, get_order(LPI_PENDBASE_SZ));
+ 	if (!pend_page)
+@@ -3287,6 +3359,17 @@ static void its_cpu_init_lpis(void)
+ 		gic_data_rdist()->flags & RD_LOCAL_PENDTABLE_PREALLOCATED ?
+ 		"reserved" : "allocated",
+ 		&paddr);
++
++       {
++               u32 rctlr = readl_relaxed(rbase + GICR_CTLR);
++               u64 pb = gicr_read_propbaser(rbase + GICR_PROPBASER);
++               u64 pe = gicr_read_pendbaser(rbase + GICR_PENDBASER);
++
++               pr_err("ITSDBG: cpu%d LPI-init GICR_CTLR=0x%08x EnableLPIs=%d PROPBASER=0x%llx PENDBASER=0x%llx prop_pa=%pa\n",
++                      smp_processor_id(), rctlr, !!(rctlr & GICR_CTLR_ENABLE_LPIS),
++                      (unsigned long long)pb, (unsigned long long)pe,
++                      &gic_rdists->prop_table_pa);
++       }
+ }
+ 
+ static void its_cpu_init_collection(struct its_node *its)
+@@ -3501,6 +3584,14 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
+ 	sz = max(sz, ITS_ITT_ALIGN);
+ 
+ 	itt = itt_alloc_pool(its->numa_node, sz);
++       if (itt) {
++               phys_addr_t itt_phys = virt_to_phys(itt);
++
++               pr_err("ITSDBG: create_device dev_id=0x%x nvecs=%d itt_sz=%d itt_phys=%pa %s quirk=%d (ZONE_DMA)\n",
++                      dev_id, nvecs, sz, &itt_phys,
++                      (itt_phys >= 0x100000000ULL) ? "ABOVE_4GB(BAD)" : "below_4GB(ok)",
++                      dma_32bit_flag);
++       }
+ 
+ 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+ 
+@@ -5328,6 +5419,14 @@ static int __init its_probe_one(struct its_node *its)
+ 	if (is_v4(its))
+ 		ctlr |= GITS_CTLR_ImDe;
+ 	writel_relaxed(ctlr, its->base + GITS_CTLR);
++       {
++               u32 rd_ctlr = readl_relaxed(its->base + GITS_CTLR);
++               u32 rd_stat = readl_relaxed(its->base + 0x0040); /* GITS_STATUSR */
++
++               pr_err("ITSDBG: after enable GITS_CTLR=0x%08x (Enabled=%d Quiescent=%d) GITS_STATUSR=0x%08x\n",
++                      rd_ctlr, rd_ctlr & 1, !!(rd_ctlr & (1U << 31)), rd_stat);
++       }
++
+ 
+ 	err = its_init_domain(its);
+ 	if (err)
+@@ -5599,6 +5698,7 @@ static int __init its_of_probe(struct device_node *node)
+ 							 * (BASER, device table, cmd queue,
+ 							 * ITT pool, LPI prop/pending) below
+ 							 * 4GB via its_alloc_pages_node() */
++			pr_err("ITSDBG: dma-32bit-quirk present -> forcing ITS ITT/tables into ZONE_DMA (GFP_DMA)\n");
+ 		}
+ 
+ 		its = its_node_init(&res, &np->fwnode, of_node_to_nid(np));
+diff --git a/drivers/irqchip/irq-gic-v3.c b/drivers/irqchip/irq-gic-v3.c
+index 3de351e66ee8..768e2e643a12 100644
+--- a/drivers/irqchip/irq-gic-v3.c
++++ b/drivers/irqchip/irq-gic-v3.c
+@@ -907,6 +907,11 @@ static void __gic_handle_irq_from_irqson(struct pt_regs *regs)
+ 	u32 irqnr;
+ 
+ 	irqnr = gic_read_iar();
++       /* ITSDBG: LPIs are INTID >= 8192 */
++       if (irqnr >= 8192)
++               pr_err_ratelimited("ITSDBG-GIC: LPI %u on cpu%d\n",
++                                  irqnr, smp_processor_id());
++
+ 
+ 	is_nmi = gic_rpr_is_nmi_prio();
+ 
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 72fb675a696f..5f7d0f616e0c 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -1284,7 +1284,26 @@ static inline bool nvme_cqe_pending(struct nvme_queue *nvmeq)
+ 
+ 	return (le16_to_cpu(READ_ONCE(hcqe->status)) & 1) == nvmeq->cq_phase;
+ }
++#if 1
++static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
++{
++	u16 head = nvmeq->cq_head;
++	static unsigned long n_call, n_write;
++
++	n_call++;
++
++	if (nvme_dbbuf_update_and_check_event(head, nvmeq->dbbuf_cq_db,
++					      nvmeq->dbbuf_cq_ei)) {
++		n_write++;
++		writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
++	}
+ 
++	if (!(n_call % 50))
++		pr_err("ITSDBG-NVME qid=%d cq_db call=%lu write=%lu head=%u dbbuf=%d\n",
++		       nvmeq->qid, n_call, n_write, head,
++		       nvmeq->dbbuf_cq_db ? 1 : 0);
++}
++#else
+ static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
+ {
+ 	u16 head = nvmeq->cq_head;
+@@ -1293,7 +1312,7 @@ static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
+ 					      nvmeq->dbbuf_cq_ei))
+ 		writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
+ }
+-
++#endif
+ static inline struct blk_mq_tags *nvme_queue_tagset(struct nvme_queue *nvmeq)
+ {
+ 	if (!nvmeq->qid)
+@@ -1369,18 +1388,51 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ 	return found;
+ }
+ 
++#if 1 
+ static irqreturn_t nvme_irq(int irq, void *data)
+ {
+ 	struct nvme_queue *nvmeq = data;
++	static unsigned long n_total, n_handled, n_none;
+ 	DEFINE_IO_COMP_BATCH(iob);
++	u16 head_before = nvmeq->cq_head;
++
++	n_total++;
+ 
+ 	if (nvme_poll_cq(nvmeq, &iob)) {
++		n_handled++;
+ 		if (!rq_list_empty(&iob.req_list))
+ 			nvme_pci_complete_batch(&iob);
++		if (!(n_handled % 50))
++			pr_err("ITSDBG-NVME qid=%d HANDLED tot=%lu hnd=%lu none=%lu head %u->%u phase=%u\n",
++			       nvmeq->qid, n_total, n_handled, n_none,
++			       head_before, nvmeq->cq_head, nvmeq->cq_phase);
+ 		return IRQ_HANDLED;
+ 	}
++
++	n_none++;
++	if (!(n_none % 50))
++		pr_err("ITSDBG-NVME qid=%d NONE tot=%lu hnd=%lu none=%lu head=%u phase=%u cqe_status=0x%04x\n",
++		       nvmeq->qid, n_total, n_handled, n_none,
++		       nvmeq->cq_head, nvmeq->cq_phase,
++		       le16_to_cpu(nvmeq->cqes[nvmeq->cq_head].status));
++
+ 	return IRQ_NONE;
+ }
++#else
++static irqreturn_t nvme_irq(int irq, void *data)
++{
++	struct nvme_queue *nvmeq = data;
++	pr_err_ratelimited("ITSDBG-NVME: nvme_irq irq=%d qid=%d\n", irq, nvmeq->qid);
++	DEFINE_IO_COMP_BATCH(iob);
++
++	if (nvme_poll_cq(nvmeq, &iob)) {
++		if (!rq_list_empty(&iob.req_list))
++			nvme_pci_complete_batch(&iob);
++		return IRQ_HANDLED;
++	}
++	return IRQ_NONE;
++}
++#endif
+ 
+ static irqreturn_t nvme_irq_check(int irq, void *data)
+ {
+diff --git a/drivers/pci/msi/msi.c b/drivers/pci/msi/msi.c
+index 34d664139f48..2e750e9877d5 100644
+--- a/drivers/pci/msi/msi.c
++++ b/drivers/pci/msi/msi.c
+@@ -211,6 +211,7 @@ static inline void pci_write_msg_msix(struct msi_desc *desc, struct msi_msg *msg
+ 	void __iomem *base = pci_msix_desc_addr(desc);
+ 	u32 ctrl = desc->pci.msix_ctrl;
+ 	bool unmasked = !(ctrl & PCI_MSIX_ENTRY_CTRL_MASKBIT);
++	u32 ra, rb, rc, rd;
+ 
+ 	if (desc->pci.msi_attrib.is_virtual)
+ 		return;
+@@ -234,17 +235,35 @@ static inline void pci_write_msg_msix(struct msi_desc *desc, struct msi_msg *msg
+ 
+ 	/* Ensure that the writes are visible in the device */
+ 	readl(base + PCI_MSIX_ENTRY_DATA);
++       /* ITSDBG: read the entry back from the endpoint's BAR to confirm it latched */
++       ra = readl(base + PCI_MSIX_ENTRY_LOWER_ADDR);
++       rb = readl(base + PCI_MSIX_ENTRY_UPPER_ADDR);
++       rd = readl(base + PCI_MSIX_ENTRY_DATA);
++       rc = readl(base + PCI_MSIX_ENTRY_VECTOR_CTRL);
++
++       pr_err("ITSDBG-MSIX readback idx=%u: addr=0x%08x%08x data=0x%x vctrl=0x%x (%s)\n",
++               desc->msi_index, rb, ra, rd, rc,
++               (rc & PCI_MSIX_ENTRY_CTRL_MASKBIT) ? "MASKED" : "unmasked");
+ }
+ 
+ void __pci_write_msi_msg(struct msi_desc *entry, struct msi_msg *msg)
+ {
+ 	struct pci_dev *dev = msi_desc_to_pci_dev(entry);
++       pr_err("ITSDBG-PCI: %s %s[%d] addr=0x%08x%08x data=0x%x (state=%d)\n",
++              pci_name(dev),
++              entry->pci.msi_attrib.is_msix ? "MSI-X" : "MSI",
++              entry->msi_index,
++              msg->address_hi, msg->address_lo, msg->data,
++              dev->current_state);
+ 
+ 	if (dev->current_state != PCI_D0 || pci_dev_is_disconnected(dev)) {
++		pr_err("ITSDBG-PCI: inside first if !PCI_D0\n");
+ 		/* Don't touch the hardware now */
+ 	} else if (entry->pci.msi_attrib.is_msix) {
++		pr_err("ITSDBG-PCI: inside second if pci_write_msg_msix\n");
+ 		pci_write_msg_msix(entry, msg);
+ 	} else {
++		pr_err("ITSDBG-PCI: inside third if pci_write_msg_msi\n");
+ 		pci_write_msg_msi(dev, entry, msg);
+ 	}
+ 
+-- 
+2.25.1
+

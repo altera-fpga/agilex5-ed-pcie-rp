@@ -11,4 +11,8 @@ do_configure:append() {
 	if [[ "${MACHINE}" == "agilex5_mk_a5e065bb32aes1" ]]; then
 		sed -i 's/\#include \"socfpga_agilex5_socdk.dts\"/\#include \"socfpga_agilex5_vanilla_modular.dts\"/' ${WORKDIR}/socfpga_agilex5_pcie_root_port.dts
 	fi
+
+	if [[ "${MACHINE}" == "agilex5_dk_a5e065bb32aes1" ]]; then
+		sed -i 's/\#include \"socfpga_agilex5_socdk.dts\"/\#include \"socfpga_agilex5_vanilla_a0.dts\"/' ${WORKDIR}/socfpga_agilex5_pcie_root_port.dts
+	fi
 }

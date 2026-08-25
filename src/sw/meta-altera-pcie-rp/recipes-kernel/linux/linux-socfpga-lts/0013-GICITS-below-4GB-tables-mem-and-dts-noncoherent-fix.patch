@@ -1,0 +1,46 @@
+From 8a2989e21e62caa1f3899490a86930f233061db2 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Wed, 22 Jul 2026 07:02:59 +0530
+Subject: [PATCH] GICITS below 4GB tables mem and dts noncoherent fix
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi | 1 +
+ drivers/irqchip/irq-gic-v3-its.c               | 7 ++++++-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+index 3b5ed2fd39d9..7df24f29ca75 100644
+--- a/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
++++ b/arch/arm64/boot/dts/intel/socfpga_agilex5.dtsi
+@@ -134,6 +134,7 @@ its: msi-controller@1d040000 {
+ 			reg = <0x0 0x1d040000 0x0 0x20000>;
+ 			msi-controller;
+ 			dma-32bit-quirk;
++			dma-noncoherent;
+ 			#msi-cells = <1>;
+ 		};
+ 	};
+diff --git a/drivers/irqchip/irq-gic-v3-its.c b/drivers/irqchip/irq-gic-v3-its.c
+index 05f2d004a542..6f35bc759138 100644
+--- a/drivers/irqchip/irq-gic-v3-its.c
++++ b/drivers/irqchip/irq-gic-v3-its.c
+@@ -5593,8 +5593,13 @@ static int __init its_of_probe(struct device_node *node)
+ 			continue;
+ 		}
+ 
+-		if (of_property_read_bool(np, "dma-32bit-quirk"))
++		if (of_property_read_bool(np, "dma-32bit-quirk")) {
+ 			dma_32bit_flag = true;
++			gfp_flags_quirk |= GFP_DMA32;   /* force ALL ITS allocations
++							 * (BASER, device table, cmd queue,
++							 * ITT pool, LPI prop/pending) below
++							 * 4GB via its_alloc_pages_node() */
++		}
+ 
+ 		its = its_node_init(&res, &np->fwnode, of_node_to_nid(np));
+ 		if (!its)
+-- 
+2.25.1
+

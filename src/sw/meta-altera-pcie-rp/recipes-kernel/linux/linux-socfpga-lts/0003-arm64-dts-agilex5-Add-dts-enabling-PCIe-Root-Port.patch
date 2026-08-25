@@ -48,7 +48,7 @@ index 000000000000..8b016a95e533
 +};
 +
 +&pcie_0_msi_irq {
-+	status = "okay";
++	status = "disabled";
 +};
 -- 
 2.34.1

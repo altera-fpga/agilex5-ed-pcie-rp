@@ -1,0 +1,113 @@
+From bf925a5455fbe533f90c34341e4e4b7e59255a38 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Wed, 5 Aug 2026 05:25:00 +0530
+Subject: [PATCH] dma address log
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/nvme/host/pci.c | 59 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)
+
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 72fb675a696f..356b0ba72927 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -903,6 +903,36 @@ static blk_status_t nvme_pci_setup_data_prp(struct request *req,
+ 	 */
+ 	iod->cmd.common.dptr.prp1 = cpu_to_le64(prp1_dma);
+ 	iod->cmd.common.dptr.prp2 = cpu_to_le64(prp2_dma);
++
++	/* ITSDBG: dump DMA addresses handed to the controller.
++	 * admin (qid 0): every command. io: sampled to avoid console flood. */
++	{
++		//static unsigned long n_prp;
++		//bool log = (nvmeq->qid == 0) || !(++n_prp % 512);
++
++		//if (log) 
++		{
++			pr_err("ITSDBG-NVME PRP qid=0 opcode=0x%x len=%d prp1=0x%llx prp2=0x%llx ndesc=%d\n",
++		       		iod->cmd.common.opcode, blk_rq_payload_bytes(req),
++		       		(unsigned long long)le64_to_cpu(iod->cmd.common.dptr.prp1),
++		       		(unsigned long long)le64_to_cpu(iod->cmd.common.dptr.prp2),
++		       		iod->nr_descriptors);
++
++			/* if PRP2 points to a list page, dump the list entries too —
++		 	 * any one of these is an address the EP will DMA to. */
++			if (iod->nr_descriptors > 0 && blk_rq_payload_bytes(req) >
++		    		2 * NVME_CTRL_PAGE_SIZE) {
++				__le64 *prp_list = iod->descriptors[0];
++				int i, n = min(16,
++						DIV_ROUND_UP(blk_rq_payload_bytes(req),
++						     NVME_CTRL_PAGE_SIZE));
++
++				for (i = 0; i < n; i++)
++					pr_err("ITSDBG-NVME PRP-list qid=0 [%d]=0x%llx\n",
++				       		i, (unsigned long long)le64_to_cpu(prp_list[i]));
++			}
++		}
++	}
+ 	if (unlikely(iter->status))
+ 		nvme_unmap_data(req);
+ 	return iter->status;
+@@ -1009,7 +1039,18 @@ static blk_status_t nvme_pci_setup_data_simple(struct request *req,
+ 			iod->cmd.common.dptr.prp2 =
+ 				cpu_to_le64(dma_addr + first_prp_len);
+ 	}
++	{
++		//static unsigned long n_simple;
++		//bool log = (nvmeq->qid == 0) || !(++n_simple % 512);
+ 
++		//if (log)
++			pr_err("ITSDBG-NVME SIMPLE qid=%d opcode=0x%x len=%u dma=0x%llx prp1=0x%llx prp2=0x%llx sgl_addr=0x%llx\n",
++			       nvmeq->qid, iod->cmd.common.opcode, bv.bv_len,
++			       (unsigned long long)dma_addr,
++			       (unsigned long long)le64_to_cpu(iod->cmd.common.dptr.prp1),
++			       (unsigned long long)le64_to_cpu(iod->cmd.common.dptr.prp2),
++			       (unsigned long long)le64_to_cpu(iod->cmd.common.dptr.sgl.addr));
++	}
+ 	return BLK_STS_OK;
+ }
+ 
+@@ -2268,6 +2309,14 @@ static int nvme_set_host_mem(struct nvme_dev *dev, u32 bits)
+ 	c.features.dword14	= cpu_to_le32(upper_32_bits(dma_addr));
+ 	c.features.dword15	= cpu_to_le32(dev->nr_host_mem_descs);
+ 
++	/* ITSDBG: what the controller is told about the HMB. dma_addr is the
++	 * descriptor LIST address; the controller reads the list from there to
++	 * find each chunk. This runs on enable (bits & ENABLE) and disable. */
++	pr_err("ITSDBG-NVME HMB set_features: bits=0x%x descs_dma=0x%llx (lo=0x%x hi=0x%x) size_pages=%u nr_desc=%u\n",
++	       bits, (unsigned long long)dma_addr,
++	       lower_32_bits(dma_addr), upper_32_bits(dma_addr),
++	       host_mem_size, dev->nr_host_mem_descs);
++
+ 	ret = nvme_submit_sync_cmd(dev->ctrl.admin_q, &c, NULL, 0);
+ 	if (ret) {
+ 		dev_warn(dev->ctrl.device,
+@@ -2334,6 +2383,13 @@ static int nvme_alloc_host_mem_single(struct nvme_dev *dev, u64 size)
+ 	dev->host_mem_descs[0].addr =
+ 		cpu_to_le64(dev->hmb_sgt->sgl->dma_address);
+ 	dev->host_mem_descs[0].size = cpu_to_le32(size / NVME_CTRL_PAGE_SIZE);
++	/* ITSDBG: HMB (single/noncontiguous) placement */
++	pr_err("ITSDBG-NVME HMB single: buf_dma=0x%llx size=%llu descs_dma=0x%llx desc[0].addr=0x%llx desc[0].size_pages=%u\n",
++	       (unsigned long long)dev->hmb_sgt->sgl->dma_address,
++	       (unsigned long long)size,
++	       (unsigned long long)dev->host_mem_descs_dma,
++	       (unsigned long long)le64_to_cpu(dev->host_mem_descs[0].addr),
++	       le32_to_cpu(dev->host_mem_descs[0].size));
+ 	return 0;
+ }
+ 
+@@ -2375,6 +2431,9 @@ static int nvme_alloc_host_mem_multi(struct nvme_dev *dev, u64 preferred,
+ 
+ 		descs[i].addr = cpu_to_le64(dma_addr);
+ 		descs[i].size = cpu_to_le32(len / NVME_CTRL_PAGE_SIZE);
++		/* ITSDBG: each HMB chunk's DMA address */
++		pr_err("ITSDBG-NVME HMB multi chunk[%d]: dma=0x%llx len=%u\n",
++		       i, (unsigned long long)dma_addr, len);
+ 		i++;
+ 	}
+ 
+-- 
+2.25.1
+

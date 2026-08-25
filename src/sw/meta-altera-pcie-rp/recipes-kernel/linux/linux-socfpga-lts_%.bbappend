@@ -22,7 +22,26 @@ SRC_URI:append:agilex5_mk_a5e065bb32aes1 = " \
 	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0010-arm64-dts-intel-agilex5-Add-reserved-memory-for-PCIe.patch", "", d)} \
 	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0011-PCI-altera-Add-Agilex5-Root-Port-legacy-INTx-support.patch", "", d)} \
 	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0012-Move-msi-irq-affinity-to-A76.patch", "", d)} \
+	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-GICITS-below-4GB-tables-mem-and-dts-noncoherent-fix.patch", "", d)} \
+	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-1-dma-address-log.patch", "", d)} \
 	"
+
+SRC_URI:append:agilex5_dk_a5e065bb32aes1 = " \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://nvme.scc", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://fit_kernel_agilex5_dk_a5e065bb32aes1_rped.its", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0001-dt-bindings-PCI-altera-Add-binding-for-Agilex-5.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0002-arm64-dts-agilex5-Add-dtsi-for-PCIe-Root-Port.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0003-arm64-dts-agilex5-Add-dts-enabling-PCIe-Root-Port.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0004-PCI-altera-Do-not-dispose-parent-IRQ-mapping.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0005-PCI-altera-Fix-resource-leaks-on-probe-failure.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0006-PCI-altera-Add-Agilex-5-support.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0007-PCI-altera-Add-register-regmap-for-debugfs.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0008-PCI-altera-Enable-PCIe-performance-monitor.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0009-v6-1-2-PCI-Configure-Root-Port-MPS-during-host-probing.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0010-arm64-dts-intel-agilex5-Add-reserved-memory-for-PCIe.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0012-Move-msi-irq-affinity-to-A76.patch", "", d)} \
+        ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-GICITS-below-4GB-tables-mem-and-dts-noncoherent-fix.patch", "", d)} \
+        "
 
 SRCREV = "${AUTOREV}"
 KERNEL_VERSION_SANITY_SKIP = "1"

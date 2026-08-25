@@ -1,0 +1,38 @@
+From 98174a2c412d4bc0dc86ea3b52c13d8fbb9e8483 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Wed, 22 Jul 2026 07:05:48 +0530
+Subject: [PATCH] MSI IRQ handler delay to handle MSI ordering
+
+Upstream-Status: Inappropriate
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/pci/controller/pcie-altera-msi.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/pci/controller/pcie-altera-msi.c b/drivers/pci/controller/pcie-altera-msi.c
+index 0622d36a5d23..d5e52c8689bb 100644
+--- a/drivers/pci/controller/pcie-altera-msi.c
++++ b/drivers/pci/controller/pcie-altera-msi.c
+@@ -19,6 +19,7 @@
+ #include <linux/pci.h>
+ #include <linux/platform_device.h>
+ #include <linux/slab.h>
++#include <linux/delay.h>
+ 
+ #define MSI_STATUS		0x0
+ #define MSI_ERROR		0x4
+@@ -64,7 +65,10 @@ static void altera_msi_isr(struct irq_desc *desc)
+ 		for_each_set_bit(bit, &status, msi->num_of_vectors) {
+ 			/* Dummy read from vector to clear the interrupt */
+ 			readl_relaxed(msi->vector_base + (bit * sizeof(u32)));
+-
++			printk(KERN_WARNING "Mahesh: Entering 5000US delay\n");
++			udelay(5000);
++			dma_rmb();
++			printk(KERN_WARNING "Mahesh: Exit 5000US delay\n");
+ 			ret = generic_handle_domain_irq(msi->inner_domain, bit);
+ 			if (ret)
+ 				dev_err_ratelimited(&msi->pdev->dev, "unexpected MSI\n");
+-- 
+2.25.1
+
