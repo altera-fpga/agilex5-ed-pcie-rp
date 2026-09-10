@@ -94,6 +94,8 @@ input    wire          fpga_reset_n,
 input    wire          pin_perst_n,
 input    wire          gts_refclk,
 
+output   wire          fmc_la00_p_cc,
+
 input    wire          hip_serial_rx_n_in0, 
 input    wire          hip_serial_rx_n_in1, 
 input    wire          hip_serial_rx_n_in2, 
@@ -126,6 +128,10 @@ wire [31:0]            f2h_irq1_irq;
 
 assign                combined_reset_n = fpga_reset_n & ~h2f_reset
 & ~ninit_done;
+
+// FMC+ Vita 57.4 Male
+// LA0 goes through MOSFET which inverts the polarity
+assign fmc_la00_p_cc = 1'b0;
 
 altera_reset_synchronizer #(
     .ASYNC_RESET (1),

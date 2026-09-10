@@ -8030,7 +8030,7 @@ Altera and sold by Altera or its authorized distributors.-->
         <ipxact:parameter parameterId="MPLL_Override" type="bit">
           <ipxact:name>MPLL_Override</ipxact:name>
           <ipxact:displayName>Override Main PLL Settings</ipxact:displayName>
-          <ipxact:value>true</ipxact:value>
+          <ipxact:value>false</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MPLL_VCO_Override_mhz" type="real">
           <ipxact:name>MPLL_VCO_Override_mhz</ipxact:name>
@@ -8065,7 +8065,7 @@ Altera and sold by Altera or its authorized distributors.-->
         <ipxact:parameter parameterId="PPLL_Override" type="bit">
           <ipxact:name>PPLL_Override</ipxact:name>
           <ipxact:displayName>Override Peripheral PLL Settings</ipxact:displayName>
-          <ipxact:value>true</ipxact:value>
+          <ipxact:value>false</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="PPLL_VCO_Override_mhz" type="real">
           <ipxact:name>PPLL_VCO_Override_mhz</ipxact:name>
@@ -8095,7 +8095,7 @@ Altera and sold by Altera or its authorized distributors.-->
         <ipxact:parameter parameterId="MPU_clk_override" type="bit">
           <ipxact:name>MPU_clk_override</ipxact:name>
           <ipxact:displayName>Override MPU Clocks</ipxact:displayName>
-          <ipxact:value>true</ipxact:value>
+          <ipxact:value>false</ipxact:value>
         </ipxact:parameter>
         <ipxact:parameter parameterId="MPU_clk_src_override" type="int">
           <ipxact:name>MPU_clk_src_override</ipxact:name>

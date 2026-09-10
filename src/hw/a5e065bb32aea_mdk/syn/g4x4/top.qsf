@@ -25,7 +25,7 @@
 set_global_assignment -name TOP_LEVEL_ENTITY top
 set_global_assignment -name ORIGINAL_QUARTUS_VERSION 24.3.0
 set_global_assignment -name PROJECT_CREATION_TIME_DATE "13:50:31  SEPTEMBER 05, 2024"
-set_global_assignment -name LAST_QUARTUS_VERSION "26.1.0 Pro Edition"
+set_global_assignment -name LAST_QUARTUS_VERSION "26.1.0 SP0.20 Pro Edition"
 set_global_assignment -name FAMILY "Agilex 5"
 set_global_assignment -name DEVICE A5ED065BB32AE4S
 set_global_assignment -name IP_SEARCH_PATHS "../../src/g4x4/intel_custom_ip/**/*;../../src/g4x4/custom_ip/**/*"
@@ -160,6 +160,10 @@ set_global_assignment -name BOARD default
 
 
 #############
+
+set_location_assignment PIN_BH62 -to fmc_la00_p_cc
+
+set_instance_assignment -name IO_STANDARD "1.2-V" -to fmc_la00_p_cc -entity top
 
 set_location_assignment PIN_BD133 -to hip_serial_rx_n_in0
 set_location_assignment PIN_BB133 -to hip_serial_rx_n_in1
