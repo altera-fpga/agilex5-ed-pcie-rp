@@ -41,7 +41,10 @@ SRC_URI:append:agilex5_dk_a5e065bb32aes1 = " \
         ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0010-arm64-dts-intel-agilex5-Add-reserved-memory-for-PCIe.patch", "", d)} \
         ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0012-Move-msi-irq-affinity-to-A76.patch", "", d)} \
         ${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-GICITS-below-4GB-tables-mem-and-dts-noncoherent-fix.patch", "", d)} \
-        "
+	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-2-pin-CQE-and-SQE_new.patch", "", d)} \
+	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-3-pin-CQE-and-SQE_new.patch", "", d)} \
+	${@bb.utils.contains("IMAGE_TYPE", "rped", "file://0013-4-stall-debug-patch-WA.patch", "", d)} \
+	"
 
 SRCREV = "${AUTOREV}"
 KERNEL_VERSION_SANITY_SKIP = "1"

@@ -1,0 +1,413 @@
+From 618a9816ea9a7174e1f0d6fbc7ae15fc39c69877 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Mon, 7 Sep 2026 05:58:13 +0530
+Subject: [PATCH] pin sqe cqe fixes
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/nvme/host/pci.c              | 246 ++++++++++++++++++---------
+ drivers/pci/controller/pcie-altera.c |   9 +
+ 2 files changed, 175 insertions(+), 80 deletions(-)
+
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index 5d059cc4fa3c..bcc5381373cc 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -247,8 +247,20 @@ struct nvme_queue {
+ 	__le32 *dbbuf_sq_ei;
+ 	__le32 *dbbuf_cq_ei;
+ 	struct completion delete_done;
++	/* ITSDBG: per-queue debug counters (were file-scope statics, which
++	 * aggregated across both controllers and every queue). */
++	unsigned long itsdbg_sub;
++	unsigned long itsdbg_db;
++	unsigned long itsdbg_cqdb;
++	unsigned long itsdbg_irq_total;
++	unsigned long itsdbg_irq_handled;
++	unsigned long itsdbg_irq_none;
+ };
+ 
++/* ITSDBG: short helper so every log line identifies its controller.
++ * With two rootports, nvme0 and nvme1 both have qid 0..4. */
++#define ITSDBG_INST(nvmeq)	((nvmeq)->dev->ctrl.instance)
++
+ /* bits for iod->flags */
+ enum nvme_iod_flags {
+ 	/* this command has been aborted by the timeout handler */
+@@ -569,12 +581,12 @@ static inline void nvme_write_sq_db(struct nvme_queue *nvmeq, bool write_sq)
+ 			nvmeq->dbbuf_sq_db, nvmeq->dbbuf_sq_ei))
+ 	{
+ 		if (nvmeq->qid == 0) {
+-        		static unsigned long n_db;
+-        		n_db++;
+-        		pr_err("ITSDBG-NVME admin SQ DOORBELL #%lu tail=%u @db_off=0x%lx\n",
+-               			n_db, nvmeq->sq_tail,
+-               		(unsigned long)((u8 *)nvmeq->q_db - (u8 *)nvmeq->dev->bar));
+-    		}
++			pr_err("ITSDBG-NVME[%d] admin SQ DOORBELL #%lu tail=%u @db_off=0x%lx\n",
++			       ITSDBG_INST(nvmeq), ++nvmeq->itsdbg_db,
++			       nvmeq->sq_tail,
++			       (unsigned long)((u8 *)nvmeq->q_db -
++					       (u8 *)nvmeq->dev->bar));
++		}
+ 		writel(nvmeq->sq_tail, nvmeq->q_db);
+ 	}
+ 	nvmeq->last_sq_tail = nvmeq->sq_tail;
+@@ -583,6 +595,22 @@ static inline void nvme_write_sq_db(struct nvme_queue *nvmeq, bool write_sq)
+ static inline void nvme_sq_copy_cmd(struct nvme_queue *nvmeq,
+ 				    struct nvme_command *cmd)
+ {
++	/*
++	 * ITSDBG: every submission path (admin sync, blk-mq single, blk-mq
++	 * batch) funnels through here, so this is the only place that sees
++	 * all commands. Logged BEFORE the sq_tail increment so sqe@ is the
++	 * slot actually being written -- that address is what STP triggers on.
++	 */
++	if (nvmeq->qid == 0) {
++		u64 sqe_addr = nvmeq->sq_dma_addr +
++			       ((u64)nvmeq->sq_tail << nvmeq->sqes);
++
++		pr_err("ITSDBG-NVME[%d] admin SUBMIT #%lu opcode=0x%x cid=%u slot=%u sqe@0x%llx\n",
++		       ITSDBG_INST(nvmeq), ++nvmeq->itsdbg_sub,
++		       cmd->common.opcode, cmd->common.command_id,
++		       nvmeq->sq_tail, (unsigned long long)sqe_addr);
++	}
++
+ 	memcpy(nvmeq->sq_cmds + (nvmeq->sq_tail << nvmeq->sqes),
+ 		absolute_pointer(cmd), sizeof(*cmd));
+ 	if (++nvmeq->sq_tail == nvmeq->q_depth)
+@@ -1216,7 +1244,6 @@ static blk_status_t nvme_queue_rq(struct blk_mq_hw_ctx *hctx,
+ static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
+ {
+ 	struct request *req;
+-	struct nvme_command *last_cmd = NULL;
+ 
+ 	if (rq_list_empty(rqlist))
+ 		return;
+@@ -1224,19 +1251,15 @@ static void nvme_submit_cmds(struct nvme_queue *nvmeq, struct rq_list *rqlist)
+ 	spin_lock(&nvmeq->sq_lock);
+ 	while ((req = rq_list_pop(rqlist))) {
+ 		struct nvme_iod *iod = blk_mq_rq_to_pdu(req);
+-		struct nvme_command *last_cmd = NULL;
++
+ 		nvme_sq_copy_cmd(nvmeq, &iod->cmd);
+ 	}
+-	if (nvmeq->qid == 0 && last_cmd) {
+-        	u64 sqe_addr = nvmeq->sq_dma_addr +
+-                       		(u64)nvmeq->sq_tail * (1 << NVME_ADM_SQES);
+-        	static unsigned long n_sub;
+-
+-        	n_sub++;
+-        	pr_err("ITSDBG-NVME admin SUBMIT #%lu opcode=0x%x cid=%u sq_tail=%u sqe@0x%llx\n",
+-               		n_sub, last_cmd->common.opcode, last_cmd->common.command_id,
+-               		nvmeq->sq_tail, (unsigned long long)sqe_addr);
+-    	}
++	/*
++	 * ITSDBG: the submit log lives in nvme_sq_copy_cmd() now. This is the
++	 * blk-mq *batch* path only -- admin commands never reach it -- and the
++	 * old block here also shadowed last_cmd inside the loop, so it could
++	 * never fire.
++	 */
+ 	nvme_write_sq_db(nvmeq, true);
+ 	spin_unlock(&nvmeq->sq_lock);
+ }
+@@ -1309,20 +1332,20 @@ static inline bool nvme_cqe_pending(struct nvme_queue *nvmeq)
+ static inline void nvme_ring_cq_doorbell(struct nvme_queue *nvmeq)
+ {
+        u16 head = nvmeq->cq_head;
+-       static unsigned long n_call, n_write;
+ 
+-       n_call++;
++       nvmeq->itsdbg_cqdb++;
+ 
+        if (nvme_dbbuf_update_and_check_event(head, nvmeq->dbbuf_cq_db,
+                                              nvmeq->dbbuf_cq_ei)) {
+-               n_write++;
+                writel(head, nvmeq->q_db + nvmeq->dev->db_stride);
+        }
+ 
+-       if (!(n_call % 50))
+-               pr_err("ITSDBG-NVME qid=%d cq_db call=%lu write=%lu head=%u dbbuf=%d\n",
+-                      nvmeq->qid, n_call, n_write, head,
+-                      nvmeq->dbbuf_cq_db ? 1 : 0);
++       /* ITSDBG: admin every time (rare); IO sampled so the 115200 console
++        * does not throttle the completion path and skew the run. */
++       if (nvmeq->qid == 0 || !(nvmeq->itsdbg_cqdb % 50))
++               pr_err("ITSDBG-NVME[%d] qid=%d cq_db call=%lu head=%u dbbuf=%d\n",
++                      ITSDBG_INST(nvmeq), nvmeq->qid, nvmeq->itsdbg_cqdb,
++                      head, nvmeq->dbbuf_cq_db ? 1 : 0);
+ }
+ #else
+ 
+@@ -1396,13 +1419,35 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ 
+ 	while (nvme_cqe_pending(nvmeq)) {
+ 		found = true;
+-		pr_err("ITSDBG-NVME_POLL_CQ found qid=%d head=%u phase=%u\n",
+-                               nvmeq->qid, nvmeq->cq_head, nvmeq->cq_phase);
+ 		/*
+ 		 * load-load control dependency between phase and the rest of
+ 		 * the cqe requires a full read memory barrier
+ 		 */
+ 		dma_rmb();
++
++		/*
++		 * ITSDBG: read the CQE only AFTER dma_rmb() -- nvme_cqe_pending
++		 * only checks the phase bit, and the barrier is what makes
++		 * command_id/status coherent on arm64. cid here pairs with
++		 * cid= from the SUBMIT log. Admin logged every time; IO only
++		 * when the status carries a non-zero SC/SCT (bit 0 is phase).
++		 */
++		{
++			struct nvme_completion *cqe = &nvmeq->cqes[nvmeq->cq_head];
++			u16 cid = READ_ONCE(cqe->command_id);
++			u16 st  = le16_to_cpu(cqe->status);
++
++			if (nvmeq->qid == 0)
++				pr_err("ITSDBG-NVME[%d] admin COMPLETE cid=%u status=0x%04x sqhd=%u head=%u phase=%u\n",
++				       ITSDBG_INST(nvmeq), cid, st,
++				       le16_to_cpu(cqe->sq_head),
++				       nvmeq->cq_head, nvmeq->cq_phase);
++			else if (st & 0xfffe)
++				pr_err("ITSDBG-NVME[%d] io ERROR qid=%d cid=%u status=0x%04x head=%u\n",
++				       ITSDBG_INST(nvmeq), nvmeq->qid, cid, st,
++				       nvmeq->cq_head);
++		}
++
+ 		nvme_handle_cqe(nvmeq, iob, nvmeq->cq_head);
+ 		nvme_update_cq_head(nvmeq);
+ 	}
+@@ -1415,26 +1460,34 @@ static inline bool nvme_poll_cq(struct nvme_queue *nvmeq,
+ static irqreturn_t nvme_irq(int irq, void *data)
+ {
+        struct nvme_queue *nvmeq = data;
+-       static unsigned long n_total, n_handled, n_none;
+        DEFINE_IO_COMP_BATCH(iob);
+        u16 head_before = nvmeq->cq_head;
+ 
+-       n_total++;
++       nvmeq->itsdbg_irq_total++;
+        if (nvme_poll_cq(nvmeq, &iob)) {
+-		n_handled++;
++		nvmeq->itsdbg_irq_handled++;
+ 		if (!rq_list_empty(&iob.req_list))
+ 			nvme_pci_complete_batch(&iob);
+-		//if (!(n_handled % 50))
+-			pr_err("ITSDBG-NVME qid=%d HANDLED tot=%lu hnd=%lu none=%lu head %u->%u phase=%u\n",
+-			       nvmeq->qid, n_total, n_handled, n_none,
++		/* admin every time; IO sampled to keep the console off the
++		 * critical path. */
++		if (nvmeq->qid == 0 || !(nvmeq->itsdbg_irq_handled % 50))
++			pr_err("ITSDBG-NVME[%d] qid=%d HANDLED tot=%lu hnd=%lu none=%lu head %u->%u phase=%u\n",
++			       ITSDBG_INST(nvmeq), nvmeq->qid,
++			       nvmeq->itsdbg_irq_total,
++			       nvmeq->itsdbg_irq_handled,
++			       nvmeq->itsdbg_irq_none,
+ 			       head_before, nvmeq->cq_head, nvmeq->cq_phase);
+                 return IRQ_HANDLED;
+         }
+ 
+-       n_none++;
+-       if (!(n_none % 50))
+-               pr_err("ITSDBG-NVME qid=%d NONE tot=%lu hnd=%lu none=%lu head=%u phase=%u cqe_status=0x%04x\n",
+-                      nvmeq->qid, n_total, n_handled, n_none,
++       nvmeq->itsdbg_irq_none++;
++       /* NOTE: cqe_status here is a STALE read -- the phase check failed, so
++        * this slot holds whatever was last written. Do not read cid from it. */
++       if (nvmeq->qid == 0 || !(nvmeq->itsdbg_irq_none % 50))
++               pr_err("ITSDBG-NVME[%d] qid=%d NONE tot=%lu hnd=%lu none=%lu head=%u phase=%u stale_status=0x%04x\n",
++                      ITSDBG_INST(nvmeq), nvmeq->qid,
++                      nvmeq->itsdbg_irq_total, nvmeq->itsdbg_irq_handled,
++                      nvmeq->itsdbg_irq_none,
+                       nvmeq->cq_head, nvmeq->cq_phase,
+                       le16_to_cpu(nvmeq->cqes[nvmeq->cq_head].status));
+ 
+@@ -1821,11 +1874,26 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
+ 
+ static void nvme_free_queue(struct nvme_queue *nvmeq)
+ {
+-	if (nvmeq->qid == 0)
+-		iounmap((void __iomem *)nvmeq->cqes);
+-	else
+-		dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
+-				(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
++	/*
++	 * ITSDBG: admin queues are ioremap_wc() of pinned reserved-memory, not
++	 * dma_alloc_coherent(). Unmap each exactly once and NULL the pointers
++	 * -- this path runs on every controller reset, and the previous version
++	 * iounmap()'d cqes twice.
++	 */
++	if (nvmeq->qid == 0) {
++		if (nvmeq->cqes) {
++			iounmap((void __iomem *)nvmeq->cqes);
++			nvmeq->cqes = NULL;
++		}
++		if (nvmeq->sq_cmds) {
++			iounmap((void __iomem *)nvmeq->sq_cmds);
++			nvmeq->sq_cmds = NULL;
++		}
++		return;
++	}
++
++	dma_free_coherent(nvmeq->dev->dev, CQ_SIZE(nvmeq),
++			(void *)nvmeq->cqes, nvmeq->cq_dma_addr);
+ 	if (!nvmeq->sq_cmds)
+ 		return;
+ 
+@@ -1833,14 +1901,8 @@ static void nvme_free_queue(struct nvme_queue *nvmeq)
+ 		pci_free_p2pmem(to_pci_dev(nvmeq->dev->dev),
+ 				nvmeq->sq_cmds, SQ_SIZE(nvmeq));
+ 	} else {
+-		if (nvmeq->qid == 0) {
+-        		iounmap((void __iomem *)nvmeq->cqes);
+-        		if (nvmeq->sq_cmds)
+-            			iounmap((void __iomem *)nvmeq->sq_cmds);
+-    		} else {
+-			dma_free_coherent(nvmeq->dev->dev, SQ_SIZE(nvmeq),
+-					  nvmeq->sq_cmds, nvmeq->sq_dma_addr);
+-		}
++		dma_free_coherent(nvmeq->dev->dev, SQ_SIZE(nvmeq),
++				  nvmeq->sq_cmds, nvmeq->sq_dma_addr);
+ 	}
+ }
+ 
+@@ -1921,28 +1983,50 @@ static int nvme_cmb_qdepth(struct nvme_dev *dev, int nr_io_queues,
+ 	return q_depth;
+ }
+ 
+-#define ITSDBG_SQ_PHYS  0xc0100000ULL
++/*
++ * ITSDBG: fixed admin queue addresses for STP correlation.
++ *
++ * These MUST be per-controller. With two rootports there are two nvme
++ * devices, each with a qid 0, so a single fixed address would make nvme0 and
++ * nvme1 program the same ASQ/ACQ into their BAR0 and DMA into the same
++ * memory -- mutual corruption, presenting as both controllers dying together
++ * with CSTS=0x3 (CFS set).
++ *
++ *   ctrl.instance 0 -> CQ 0xc0000000  SQ 0xc0100000
++ *   ctrl.instance 1 -> CQ 0xc0010000  SQ 0xc0110000
++ *
++ * Both stay inside the 1 MB nvme-dbg@c0000000 / nvme-dbg-sq@c0100000
++ * reserved-memory regions, so no DT change is needed for up to 16 devices.
++ */
++#define ITSDBG_CQ_PHYS		0xc0000000ULL
++#define ITSDBG_SQ_PHYS		0xc0100000ULL
++#define ITSDBG_INST_STRIDE	0x00010000ULL	/* 64 KB per controller */
++#define ITSDBG_MAX_INST		16
++
+ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
+ 				int qid)
+ {
+ 	struct pci_dev *pdev = to_pci_dev(dev->dev);
+ 
+-	if (qid == 0) {
+-        	/* ITSDBG: pin admin SQ to a fixed address for STP correlation */
+-        	nvmeq->sq_dma_addr = ITSDBG_SQ_PHYS;
+-        	nvmeq->sq_cmds = (void __force *)
+-            	ioremap_wc(ITSDBG_SQ_PHYS, SQ_SIZE(nvmeq));
+-        	if (!nvmeq->sq_cmds)
+-            		return -ENOMEM;
+-        	memset_io((void __iomem *)nvmeq->sq_cmds, 0, SQ_SIZE(nvmeq));
+-
+-        	pr_err("ITSDBG-NVME admin SQ PINNED base=0x%llx span 0x%llx..0x%llx entry_sz=%u\n",
+-               		(unsigned long long)nvmeq->sq_dma_addr,
+-               		(unsigned long long)nvmeq->sq_dma_addr,
+-               		(unsigned long long)(nvmeq->sq_dma_addr + SQ_SIZE(nvmeq) - 1),
+-               		(unsigned)(1 << NVME_ADM_SQES));
+-        	return 0;
+-    	}
++	if (qid == 0 && dev->ctrl.instance < ITSDBG_MAX_INST) {
++		u64 sq_phys = ITSDBG_SQ_PHYS +
++			      (u64)dev->ctrl.instance * ITSDBG_INST_STRIDE;
++
++		/* ITSDBG: pin admin SQ to a fixed address for STP correlation */
++		nvmeq->sq_dma_addr = sq_phys;
++		nvmeq->sq_cmds = (void __force *)
++			ioremap_wc(sq_phys, SQ_SIZE(nvmeq));
++		if (!nvmeq->sq_cmds)
++			return -ENOMEM;
++		memset_io((void __iomem *)nvmeq->sq_cmds, 0, SQ_SIZE(nvmeq));
++
++		pr_err("ITSDBG-NVME[%d] admin SQ PINNED span 0x%llx..0x%llx entry_sz=%u depth=%u\n",
++		       dev->ctrl.instance,
++		       (unsigned long long)sq_phys,
++		       (unsigned long long)(sq_phys + SQ_SIZE(nvmeq) - 1),
++		       (unsigned)(1 << NVME_ADM_SQES), nvmeq->q_depth);
++		return 0;
++	}
+ 
+ 	if (qid && dev->cmb_use_sqes && (dev->cmbsz & NVME_CMBSZ_SQS)) {
+ 		nvmeq->sq_cmds = pci_alloc_p2pmem(pdev, SQ_SIZE(nvmeq));
+@@ -1964,7 +2048,6 @@ static int nvme_alloc_sq_cmds(struct nvme_dev *dev, struct nvme_queue *nvmeq,
+ 		return -ENOMEM;
+ 	return 0;
+ }
+-#define ITSDBG_CQ_PHYS	0xc0000000ULL
+ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
+ {
+ 	struct nvme_queue *nvmeq = &dev->queues[qid];
+@@ -1974,24 +2057,27 @@ static int nvme_alloc_queue(struct nvme_dev *dev, int qid, int depth)
+ 
+ 	nvmeq->sqes = qid ? dev->io_sqes : NVME_ADM_SQES;
+ 	nvmeq->q_depth = depth;
+-	if (qid == 0) {
+-		nvmeq->cq_dma_addr = ITSDBG_CQ_PHYS;
++	if (qid == 0 && dev->ctrl.instance < ITSDBG_MAX_INST) {
++		u64 cq_phys = ITSDBG_CQ_PHYS +
++			      (u64)dev->ctrl.instance * ITSDBG_INST_STRIDE;
++
++		nvmeq->cq_dma_addr = cq_phys;
+ 		nvmeq->cqes = (struct nvme_completion __force *)
+-			ioremap_wc(ITSDBG_CQ_PHYS, CQ_SIZE(nvmeq));
++			ioremap_wc(cq_phys, CQ_SIZE(nvmeq));
+ 		if (!nvmeq->cqes)
+ 			goto free_nvmeq;
+ 		memset_io((void __iomem *)nvmeq->cqes, 0, CQ_SIZE(nvmeq));
+ 
+-		pr_err("ITSDBG-NVME admin CQ PINNED span 0x%llx..0x%llx depth=%u slot2@0x%llx\n",
+-		       (unsigned long long)nvmeq->cq_dma_addr,
+-		       (unsigned long long)(nvmeq->cq_dma_addr + CQ_SIZE(nvmeq) - 1),
+-		       depth,
+-		       (unsigned long long)(nvmeq->cq_dma_addr + 32));
++		pr_err("ITSDBG-NVME[%d] admin CQ PINNED span 0x%llx..0x%llx depth=%u slot_sz=16\n",
++		       dev->ctrl.instance,
++		       (unsigned long long)cq_phys,
++		       (unsigned long long)(cq_phys + CQ_SIZE(nvmeq) - 1),
++		       depth);
+ 	} else {
+-	nvmeq->cqes = dma_alloc_coherent(dev->dev, CQ_SIZE(nvmeq),
+-					 &nvmeq->cq_dma_addr, GFP_KERNEL);
+-	if (!nvmeq->cqes)
+-		goto free_nvmeq;
++		nvmeq->cqes = dma_alloc_coherent(dev->dev, CQ_SIZE(nvmeq),
++						 &nvmeq->cq_dma_addr, GFP_KERNEL);
++		if (!nvmeq->cqes)
++			goto free_nvmeq;
+ 	}
+ 	if (nvme_alloc_sq_cmds(dev, nvmeq, qid))
+ 		goto free_cqdma;
+diff --git a/drivers/pci/controller/pcie-altera.c b/drivers/pci/controller/pcie-altera.c
+index 66736d1acd0b..b7e89b975cfa 100644
+--- a/drivers/pci/controller/pcie-altera.c
++++ b/drivers/pci/controller/pcie-altera.c
+@@ -1309,6 +1309,15 @@ static struct platform_driver altera_pcie_driver = {
+ 	},
+ };
+ 
++static void altera_force_mrrs_128(struct pci_dev *pdev)
++{
++	int ret = pcie_set_readrq(pdev, 128);
++
++	dev_info(&pdev->dev, "ITSDBG: force MRRS=128 -> %d (now %d)\n",
++		 ret, pcie_get_readrq(pdev));
++}
++DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, altera_force_mrrs_128);
++
+ MODULE_DEVICE_TABLE(of, altera_pcie_of_match);
+ module_platform_driver(altera_pcie_driver);
+ MODULE_DESCRIPTION("Altera PCIe host controller driver");
+-- 
+2.25.1
+

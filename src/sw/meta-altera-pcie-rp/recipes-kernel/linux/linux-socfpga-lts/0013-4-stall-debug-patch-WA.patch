@@ -1,0 +1,104 @@
+From c3d5750c65428465de0e1904c391ebd77f3d88d2 Mon Sep 17 00:00:00 2001
+From: Mahesh Vaidya <mahesh.vaidya@altera.com>
+Date: Tue, 8 Sep 2026 05:57:36 +0530
+Subject: [PATCH] stall debug patch WA
+
+Upstream-Status: Pending
+Signed-off-by: Mahesh Vaidya <mahesh.vaidya@altera.com>
+---
+ drivers/nvme/host/pci.c              | 37 +++++++++++++++++++++++++++-
+ drivers/pci/controller/pcie-altera.c |  9 +++++++
+ 2 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/nvme/host/pci.c b/drivers/nvme/host/pci.c
+index bcc5381373cc..043d91609d7d 100644
+--- a/drivers/nvme/host/pci.c
++++ b/drivers/nvme/host/pci.c
+@@ -102,6 +102,9 @@ static unsigned int io_queue_depth = 1024;
+ module_param_cb(io_queue_depth, &io_queue_depth_ops, &io_queue_depth, 0644);
+ MODULE_PARM_DESC(io_queue_depth, "set io queue depth, should >= 2 and < 4096");
+ 
++/* ITSDBG: set once when CFS is first seen; freezes everything thereafter. */
++static atomic_t itsdbg_frozen = ATOMIC_INIT(0);
++
+ static int io_queue_count_set(const char *val, const struct kernel_param *kp)
+ {
+ 	unsigned int n;
+@@ -1740,6 +1743,9 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
+ 	struct request *abort_req;
+ 	struct nvme_command cmd = { };
+ 	struct pci_dev *pdev = to_pci_dev(dev->dev);
++	/* Already frozen (this or the other controller): never escalate again. */
++	if (atomic_read(&itsdbg_frozen))
++		return BLK_EH_RESET_TIMER;
+ 	u32 csts = readl(dev->bar + NVME_REG_CSTS);
+ 	u8 opcode;
+ 
+@@ -1768,7 +1774,36 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
+ 	 */
+ 	if (nvme_should_reset(dev, csts)) {
+ 		nvme_warn_reset(dev, csts);
+-		goto disable;
++		if (!atomic_cmpxchg(&itsdbg_frozen, 0, 1)) {
++			struct nvme_queue *q = &dev->queues[0];
++			u32 __force *p = (u32 __force *)q->cqes;
++			unsigned int i;
++
++			/* Dump the admin CQ BEFORE anything can overwrite it. */
++			pr_err("ITSDBG-NVME[%d] CFS csts=0x%x cq_head=%u cq_phase=%u sq_tail=%u CQ=0x%llx SQ=0x%llx\n",
++			       dev->ctrl.instance, csts, q->cq_head,
++			       q->cq_phase, q->sq_tail,
++			       (unsigned long long)q->cq_dma_addr,
++			       (unsigned long long)q->sq_dma_addr);
++
++			for (i = 0; i < CQ_SIZE(q) / 4; i += 4)
++				pr_err("ITSDBG-NVME[%d] CQ +0x%03x: %08x %08x %08x %08x\n",
++				       dev->ctrl.instance, i * 4,
++				       p[i], p[i+1], p[i+2], p[i+3]);
++
++			/* Stop the endpoint initiating any further DMA. */
++			pci_clear_master(to_pci_dev(dev->dev));
++
++			pr_err("ITSDBG-NVME[%d] FROZEN: BusMaster cleared, no reset. "
++			       "Inspect CQ 0x%llx / SQ 0x%llx now.\n",
++			       dev->ctrl.instance,
++			       (unsigned long long)q->cq_dma_addr,
++			       (unsigned long long)q->sq_dma_addr);
++		}
++
++		/* Do NOT goto disable — that resets the controller. */
++		return BLK_EH_RESET_TIMER;
++		//goto disable;
+ 	}
+ 
+ 	/*
+diff --git a/drivers/pci/controller/pcie-altera.c b/drivers/pci/controller/pcie-altera.c
+index b7e89b975cfa..1d597887c543 100644
+--- a/drivers/pci/controller/pcie-altera.c
++++ b/drivers/pci/controller/pcie-altera.c
+@@ -570,6 +570,9 @@ static int aglx_rp_write_cfg(struct altera_pcie *pcie, u8 busno,
+ static int aglx_ep_write_cfg(struct altera_pcie *pcie, u8 busno,
+ 			     unsigned int devfn, int where, int size, u32 value)
+ {
++		if (!pcie->pcie_data->ops->get_link_status(pcie))
++		return PCIBIOS_DEVICE_NOT_FOUND;
++
+ 	cra_writel(pcie, ((busno << 8) | devfn), AGLX_BDF_REG);
+ 	if (busno > AGLX_RP_SECONDARY(pcie))
+ 		where |= FIELD_PREP(AGLX_CFG_TARGET, AGLX_CFG_TARGET_TYPE1);
+@@ -592,6 +595,12 @@ static int aglx_ep_write_cfg(struct altera_pcie *pcie, u8 busno,
+ static int aglx_ep_read_cfg(struct altera_pcie *pcie, u8 busno,
+ 			    unsigned int devfn, int where, int size, u32 *value)
+ {
++		/* EP config space is unreachable when the link is down; a bare
++	 * cra_read* would take a fatal synchronous external abort. */
++	if (!pcie->pcie_data->ops->get_link_status(pcie)) {
++		*value = ~0U;
++		return PCIBIOS_DEVICE_NOT_FOUND;
++	}
+ 	cra_writel(pcie, ((busno << 8) | devfn), AGLX_BDF_REG);
+ 	if (busno > AGLX_RP_SECONDARY(pcie))
+ 		where |= FIELD_PREP(AGLX_CFG_TARGET, AGLX_CFG_TARGET_TYPE1);
+-- 
+2.25.1
+
