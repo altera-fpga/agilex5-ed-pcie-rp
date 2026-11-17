@@ -1,0 +1,18 @@
+/.gitconfig
+/.netrc
+/build/
+/meta-altera-fpga/
+/meta-openembedded/
+/meta-filesystems/
+/meta-virtualization/
+/bitbake/
+/meta-yocto/
+/openembedded-core/
+/poky/
+/venv/
+/meta-custom/recipes-fpga/fpga-bitstream/files/*.rbf
+/meta-custom/recipes-fpga/fpga-bitstream/files/*.sof
+/meta-clang/
+/.kas_shell_history
+# Repo-root .gitignore ignores *.patch; keep the kernel patch series tracked
+!/meta-custom/recipes-kernel/linux/linux-socfpga-lts/patches/*.patch

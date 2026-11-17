@@ -1,0 +1,2 @@
+# PCIe Root Port GSRD does not select a Xen image by default.
+# This file exists so the top-level Kconfig source succeeds.

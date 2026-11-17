@@ -1,42 +1,89 @@
 # Agilex™ 5 PCIe Root Port System Example Design
 
-This system example design demonstrates a PCIe root port running on the [Agilex™ 5 FPGA E-Series 065B Modular Development Kit](https://docs.altera.com/r/docs/820977/current/agilextm-5-fpga-e-series-065b-modular-development-kit-user-guide) connected to a Non-Volatile Memory express (NVMe) endpoint. The PCIe root port is capable of Gen4x4 speeds. The design is intended to serve as a reference to customers on how to implement and run a performant root port system using the Agilex™ 5 SoC and relevant IP.
+The Agilex™ 5 PCIe Root Port System Example Design targets the Agilex™ 5 FPGA E-Series 065B Modular Development Kit with a PCIe Gen4x4 root port connected to an NVMe endpoint, using the HPS and Multichannel DMA (MCDMA) bridge.
 
 ## Description
 
-The PCIe root port example design is based on the Agilex™ 5 Golden System Reference Design (GSRD) with the following components added:
+The Agilex™ 5 PCIe Root Port System Example Design demonstrates a PCIe Gen4x4 root port on the Altera Agilex™ 5 FPGA E-Series 065B Modular Development Kit, connected to a Non-Volatile Memory express (NVMe) endpoint. The design is intended to serve as a reference for implementing and running a performant root port system using the Agilex™ 5 SoC and relevant IP.
 
-- Linux driver for PCIe root port IP that runs on HPS, enumerates the PCIe endpoint(s) and configures the PCIe root port Hard IP (HIP) through a dedicated reconfiguration AXI-Lite interface.
-- The Multichannel DMA (MCDMA) bridge which interfaces between the SoC's AXI-MM interface on one end and the AXI-ST interface on the PCIe root port IP (carrying PCIe TLP traffic) on the other.
-- Various bridges, interconnects and adapters to handle clock crossing, data path and control path.
+The System Example Design (SED) provides the necessary drivers and user applications to support the Linux stack running on the HPS.
 
-The system block diagram is shown below:
+The system's primary components include:
 
-![Agilex™ 5 Root Port block diagram](https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/rel/26.1/images/SM_RP.png)
-*Interrupt Latency Counter IP (ILC) is only present in PCIe root port design using Agilex™ 5 FPGA E-Series 065B Premium Development Kit
+- The Hardware Reference Design
+- Hard Processor Subsystem (HPS)
+- Multichannel DMA (MCDMA) bridge
+- GTS PCIe Root Port Hard IP
+- Bridges, interconnects, and adapters for clock crossing, data path, and control path
+- Reference HPS software including:
+  - Arm Trusted Firmware
+  - U-Boot
+  - Linux Kernel
+  - Linux Drivers
+  - User Space Applications
 
-- The HPS-to-FPGA (H2F) lightweight AXI4 interface on the HPS is used for accessing the control and status (CSR) interface of various blocks on the design. It connects to the reconfiguration interface on the PCIe root port HIP as well as the Configuration Slave (CS) interface on the MCDMA bridge.
-   - Configuration of the PCIe Endpoint (as part of Enumeration) is done via the CS interface. This interface supports only one outstanding configuration write/read transaction, as the number of PCIe tags allotted to this interface is only one (inside the MCDMA bridge).
-   - The connection to the HIP reconfiguration interface allows for updating the Type1 configuration space fields such as Primary, Secondary and Subordinate Bus numbers as well as Memory ranges to support different addressing schemes, i.e., Route by ID or Route by Address. PCIe root port configuration and status register accesses for IRQ and error status are also done via the same path.
-- Transfer of large memory transactions between the SoC's H2F AXI4 interface and the PCIe endpoint occurs via the Bursting AXI-MM Slave (BAS) interface on the MCDMA bridge. This interface theoretically supports 64 outstanding read transactions. 
-- MSI/MSI-X interrupts from the PCIe endpoint are handled through the Bursting AXI-MM Master (BAM) interface on the bridge IP.
-- The MSI Ordering module captures MSI/MSI-X interrupts coming from a PCIe Endpoint and forwards them to the host's interrupt controller (GIC) only after the preceding data writes have actually completed at the destination. This prevents the interrupt from reaching the HPS before the DMA data has landed in memory.
-- The bridge IP also supports memory requests (Read/Write) initiated by the endpoint (DMA bus mastering) targeting System Memory. These transactions are routed via the HPS's FPGA-to-HPS (F2H) AXI4 interface as shown in the diagram.
+![Agilex™ 5 Root Port block diagram](images/SM_RP.png)
+
+Important features of the design include:
+
+- Linux driver for the PCIe root port IP that runs on the HPS, enumerates the PCIe endpoint(s), and configures the PCIe root port Hard IP through a dedicated reconfiguration AXI-Lite interface
+- HPS-to-FPGA (H2F) lightweight AXI4 for CSR access to the HIP reconfiguration interface and the MCDMA Configuration Slave (CS) interface
+- Bursting AXI-MM Slave (BAS) path for large memory transactions between the SoC H2F AXI4 interface and the PCIe endpoint
+- MSI/MSI-X interrupt handling via the Bursting AXI-MM Master (BAM) interface
+- Endpoint-initiated memory requests (DMA bus mastering) targeting system memory via the HPS FPGA-to-HPS (F2H) AXI4 interface
+
+The System Example Design supports the following design configuration on Altera Development Kits.
+
+| SL No | Design configuration              | Link speed / width | Development Kit Supported                                                                                                      | Device Family                | Device Part     | Documentation                            |
+| ----- | --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------- | ---------------------------------------- |
+| 1.    | PCIe Root Port with NVMe endpoint | Gen4x4             | [MK-A5E065BB32AEA](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit) | Agilex™ 5 E-Series (Group B) | A5ED065BB32AE4S | [Build README](./mk-a5e065bb32aea/pcie-rp) |
 
 ## Repository Structure
 
-Directory Structure used in this example design:
+Directory Structure Used in This Example Design:
 
- ```bash
-    |--- doc
-    |--- src
-    |   |--- hw
-    |   |   |--- a5e065bb32aea_mdk
-    |   |--- sw
- ```
+```bash
+agilex5-ed-pcie-rp
+|--- images/
+|--- mk-a5e065bb32aea/
+|   |--- pcie-rp/               # PCIe Gen4x4 Root Port, Modular Development Kit
+```
+
+The design directory contains `src/`, `syn/`, `sim_example/`, and `software/` (see the design README for details).
+
+## Project Details
+
+- **Family**: Agilex 5
+- **Quartus Version**: 26.3
+- **Patch Number**: Unknown
+- **Development Kit**: MK-A5E065BB32AEA
+- **Device Part**: A5ED065BB32AE4S
+- **Category**: HPS, PCIe
+- **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp
+- **Design Package**: a5ed065b-modular-devkit-pcie-rp-gen4x4.zip
+
+## Documentations
+
+- **Title**: Design and Build Readme  
+  **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/main/mk-a5e065bb32aea/pcie-rp/README.md
+- **Title**: Hardware Build (syn)  
+  **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/main/mk-a5e065bb32aea/pcie-rp/syn/g4x4/README.md
+- **Title**: Software / Yocto Build Readme  
+  **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/main/mk-a5e065bb32aea/pcie-rp/software/yocto_linux/README.md
 
 ## Getting Started
 
-Refer to the individual READMEs for details and build instructions for the hardware design.
+Building the design is easy with the scripts provided in the repo. Clone the repository to get the source files.
 
-- [a5e065bb32aea_mdk](src/hw/a5e065bb32aea_mdk/README.md): PCIe Root Port System Example Design for Agilex™ 5 FPGA E-Series 065B Modular Development Kit
+```bash
+git clone https://github.com/altera-fpga/agilex5-ed-pcie-rp.git
+cd agilex5-ed-pcie-rp
+git checkout <Release Tag>
+```
+
+Follow the links below to compile, build, and test the design solution.
+
+- [Building PCIe Root Port on MK-A5E065BB32AEA](./mk-a5e065bb32aea/pcie-rp)
+- [Software / Yocto (GSRD 2.0)](./mk-a5e065bb32aea/pcie-rp/software/yocto_linux/README.md)
+
+Run `make help` from the design directory for the full target list.
