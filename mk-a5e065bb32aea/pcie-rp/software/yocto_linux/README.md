@@ -3,7 +3,8 @@
 Yocto / KAS BSP for the Agilex™ 5 PCIe Root Port SED on the Agilex™ 5 FPGA E-Series 065B
 Modular Development Kit (`MACHINE=agilex5e`).
 Select the design with **`PCIE_RP_DESIGN`** (see `meta-custom/conf/pcie-rp-solution.inc`; default `PCIE_RP_G4X4`).
-Hardware compile (`src` / `syn/g4x4`): [../../README.md](../../README.md).
+Hardware compile (`src/` / `syn/g4x4/`): [../../README.md](../../README.md) and
+[../../syn/g4x4/README.md](../../syn/g4x4/README.md).
 
 The base layer is `meta-altera-fpga` / `meta-altera-bsp`. Configure and build with KAS and BitBake.
 
@@ -22,13 +23,39 @@ See [../../README.md](../../README.md) for hardware build and programming-file s
 **Note:** There is **no** `artifacts/` directory any more. `u-boot-spl-dtb.hex` and other
 boot binaries are generated under `build/tmp/deploy/images/agilex5e/` after a Yocto build.
 
+## Design details
+
+| Item | Value |
+|------|-------|
+| Family | Agilex 5 |
+| Development kit | Agilex 5 FPGA E-Series 065B Modular Development Kit (MK-A5E065BB32AEA, `mk-a5e065bb32aea`) |
+| Device part | A5ED065BB32AE4S |
+| Quartus Prime Pro | 26.3 |
+| PCIe | GTS root port, Hard IP mode `Gen4 x4` (16.0 Gbps lane rate), NVMe endpoint |
+| Subsystem | PCIe root port + HPS + Multichannel DMA (MCDMA) bridge |
+| `MACHINE` | `agilex5e` (`kas/machine.yml`) |
+| Hardware revision | `baseline_a55` (`REVISION_NAMES` in `../../project_config.mk`) |
+| Make stem | `mk-a5e065bb32aea-baseline-pcie-rp` |
+| Deploy directory | `build/tmp/deploy/images/agilex5e/` |
+
+## Component versions
+
+Set in `kas/bsp.yml`; all three are fetched from the public `altera-fpga` repositories with
+`SRCREV = "${AUTOREV}"`, i.e. the tip of the branch at build time.
+
+| Component | Branch | Recipe version |
+|-----------|--------|----------------|
+| Linux | `socfpga-6.18.37-lts` | `linux-socfpga-lts` 6.18.37 |
+| U-Boot | `socfpga_v2026.07` | `u-boot-socfpga` v2026.07 |
+| Arm Trusted Firmware | `socfpga_v2.15.0` | `arm-trusted-firmware` v2.15 (BL31 reports v2.15.1) |
+
 ## Migration from GSRD 1.0
 
 | GSRD 1.0 (`src/sw`, `meta-altera-pcie-rp`) | GSRD 2.0 (`software/yocto_linux`, `meta-custom`) |
 |---------------------------------------------|---------------------------------------------------|
 | `agilex5_dk_a5e065bb32aes1-rped-build.sh`, `IMAGE_TYPE=rped` | `build.sh <core.rbf> sd` (KAS) |
 | `MACHINE=agilex5_dk_a5e065bb32aes1` | `MACHINE=agilex5e` (`kas/machine.yml`) |
-| Kernel `socfpga-6.18.37-lts` + 12 patches | Kernel `socfpga-6.18.37-lts` + the same 12 patches |
+| Kernel `socfpga-6.18.37-lts` + 12 patches | Kernel `socfpga-6.18.37-lts` + 13 patches (the same 12 plus `0013-PCI-altera-Limit-MRRS-to-512-bytes-on-MCDMA-Root-Por`) |
 | `device-tree.bbappend` (socdk.dts override) | `device-tree/socfpga_agilex5_pcie_root_port_modular.dts` built with the kernel |
 | `hw-ref-design.bbappend` + checked-in RBFs | `recipes-fpga/fpga-bitstream/files/baseline_a55.core.rbf` staged from HW build |
 | `fit_kernel_agilex5_dk_a5e065bb32aes1_rped.its` (crc32) | `fit_agilex5_kernel_pcie_rp.its` (sha256 / rsa2048), `kernel.itb` |
@@ -122,8 +149,9 @@ The image directory contains yaml configurations for core-image-minimal, console
         - systemd
         - mtd-utils
 
-The PCIe Root Port design additionally installs `nvme-cli`, `dtc`, `fio`, `pciutils` (`lspci`)
-and `util-linux` in every image (`IMAGE_INSTALL` in `meta-custom/conf/layer.conf`).
+The PCIe Root Port design additionally installs `rootfs-files`, `nvme-cli`, `dtc`, `fio`,
+`pciutils` (`lspci`), `util-linux` and `coreutils` in every image
+(`IMAGE_INSTALL` in `meta-custom/conf/layer.conf`).
 
 ## meta-custom layer
 - **conf**  
@@ -182,6 +210,15 @@ REVISION=baseline_a55
 cp ../../output_files/${REVISION}.core.rbf \
   meta-custom/recipes-fpga/fpga-bitstream/files/${REVISION}.core.rbf
 ```
+
+**The bitstream is not stored in this repository.** `*.rbf` and `*.sof` are listed in
+`.gitignore` and only a `.dummy` placeholder is tracked under `fpga-bitstream/files/`.
+Because `kas.yml` sets `FPGA_ENABLE_CORE_PGM ?= "1"`, a fresh clone fails at `do_fetch`
+until you supply the core RBF by one of the two methods above.
+
+Setting `FPGA_ENABLE_CORE_PGM = "0"` builds a `kernel.itb` with **no** bitstream inside and
+selects `fit_agilex5_kernel_no_rbf_pcie_rp.its`, which provides only `board-0` and `board-2`;
+booting `board-4` then fails because that configuration does not exist.
 
 The DTB `socfpga_agilex5_pcie_root_port_modular.dtb` is built with the kernel from
 `meta-custom/recipes-kernel/linux/device-tree/`; see its README.
@@ -249,6 +286,21 @@ Make supplies the core RBF path. Manual equivalent from `yocto_linux/`:
 ./build.sh ../../output_files/baseline_a55.core.rbf sd
 # Usage: ./build.sh <RBF_FILE> <BOOT_SOURCE>
 # BOOT_SOURCE: sd | qspi | emmc | nand
+```
+
+### Default targets — `kas build`
+
+`kas.yml` declares the default targets, so a bare `kas build` produces the same images as
+`build.sh`:
+
+```yaml
+target:
+  - console-image-minimal
+  - gsrd-console-image
+```
+
+```bash
+kas build kas.yml
 ```
 
 ### From command line — `kas shell`
@@ -397,5 +449,6 @@ $ bitbake -c build linux-socfpga-lts
 ```
 
 ### Documentation
+- [HPS PCIe Root Port System Example Design User Guide: Agilex 5 E-Series 065B Modular Development Kit](https://altera-fpga.github.io/latest/embedded-designs/agilex-5/e-series/modular-065b/pcie-rp/ug-pcie_rp-agx5e-modular-065b/)
 - [KAS] https://kas.readthedocs.io/en/latest/
 - [YOCTO] https://docs.yoctoproject.org/

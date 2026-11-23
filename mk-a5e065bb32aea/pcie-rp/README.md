@@ -6,7 +6,7 @@ System Example Design for the [Agilex 5 FPGA E-Series 065B Modular Development K
 
 ## Dependency
 
-- Altera Quartus Prime Pro (see Release Notes for the supported version)
+- Altera Quartus Prime Pro (see Project Details in the [repository README](../../README.md) for the supported version)
 - Software / Yocto: [software/yocto_linux/README.md](software/yocto_linux/README.md)
 
 ## Directory structure

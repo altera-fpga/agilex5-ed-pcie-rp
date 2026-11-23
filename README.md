@@ -55,15 +55,18 @@ The design directory contains `src/`, `syn/`, `sim_example/`, and `software/` (s
 
 - **Family**: Agilex 5
 - **Quartus Version**: 26.3
-- **Patch Number**: Unknown
 - **Development Kit**: [MK-A5E065BB32AEA](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit)
 - **Device Part**: A5ED065BB32AE4S
 - **Category**: HPS, PCIe
+- **Source**: Quartus Prime Pro
 - **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp
 - **Design Package**: a5ed065b-modular-devkit-pcie-rp-gen4x4.zip
+- **Documentations**: https://altera-fpga.github.io/latest/embedded-designs/agilex-5/e-series/modular-065b/pcie-rp/ug-pcie_rp-agx5e-modular-065b/
 
 ## Documentations
 
+- **Title**: HPS PCIe Root Port System Example Design User Guide: Agilex 5 E-Series 065B Modular Development Kit
+  **URL**: https://altera-fpga.github.io/latest/embedded-designs/agilex-5/e-series/modular-065b/pcie-rp/ug-pcie_rp-agx5e-modular-065b/
 - **Title**: Design and Build Readme  
   **URL**: [mk-a5e065bb32aea/pcie-rp/README.md](./mk-a5e065bb32aea/pcie-rp/README.md)
 - **Title**: Hardware Build (syn)  
