@@ -1,6 +1,6 @@
 # Agilex™ 5 PCIe Root Port System Example Design
 
-The Agilex™ 5 PCIe Root Port System Example Design targets the Agilex™ 5 FPGA E-Series 065B Modular Development Kit with a PCIe Gen4x4 root port connected to an NVMe endpoint, using the HPS and Multichannel DMA (MCDMA) bridge.
+The Agilex™ 5 PCIe Root Port System Example Design targets the [Agilex™ 5 FPGA E-Series 065B Modular Development Kit (MK-A5E065BB32AEA)](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit) with a PCIe Gen4x4 root port connected to an NVMe endpoint, using the HPS and Multichannel DMA (MCDMA) bridge.
 
 ## Description
 
@@ -36,7 +36,7 @@ The System Example Design supports the following design configuration on Altera 
 
 | SL No | Design configuration              | Link speed / width | Development Kit Supported                                                                                                      | Device Family                | Device Part     | Documentation                            |
 | ----- | --------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- | --------------- | ---------------------------------------- |
-| 1.    | PCIe Root Port with NVMe endpoint | Gen4x4             | [MK-A5E065BB32AEA](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit) | Agilex™ 5 E-Series (Group B) | A5ED065BB32AE4S | [Build README](./mk-a5e065bb32aea/pcie-rp) |
+| 1.    | PCIe Root Port with NVMe endpoint | Gen4x4             | [MK-A5E065BB32AEA](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit) | Agilex™ 5 E-Series (Group B) | A5ED065BB32AE4S | [Build README](./mk-a5e065bb32aea/pcie-rp/README.md) |
 
 ## Repository Structure
 
@@ -56,7 +56,7 @@ The design directory contains `src/`, `syn/`, `sim_example/`, and `software/` (s
 - **Family**: Agilex 5
 - **Quartus Version**: 26.3
 - **Patch Number**: Unknown
-- **Development Kit**: MK-A5E065BB32AEA
+- **Development Kit**: [MK-A5E065BB32AEA](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit)
 - **Device Part**: A5ED065BB32AE4S
 - **Category**: HPS, PCIe
 - **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp
@@ -65,11 +65,11 @@ The design directory contains `src/`, `syn/`, `sim_example/`, and `software/` (s
 ## Documentations
 
 - **Title**: Design and Build Readme  
-  **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/main/mk-a5e065bb32aea/pcie-rp/README.md
+  **URL**: [mk-a5e065bb32aea/pcie-rp/README.md](./mk-a5e065bb32aea/pcie-rp/README.md)
 - **Title**: Hardware Build (syn)  
-  **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/main/mk-a5e065bb32aea/pcie-rp/syn/g4x4/README.md
+  **URL**: [mk-a5e065bb32aea/pcie-rp/syn/g4x4/README.md](./mk-a5e065bb32aea/pcie-rp/syn/g4x4/README.md)
 - **Title**: Software / Yocto Build Readme  
-  **URL**: https://github.com/altera-fpga/agilex5-ed-pcie-rp/blob/main/mk-a5e065bb32aea/pcie-rp/software/yocto_linux/README.md
+  **URL**: [mk-a5e065bb32aea/pcie-rp/software/yocto_linux/README.md](./mk-a5e065bb32aea/pcie-rp/software/yocto_linux/README.md)
 
 ## Getting Started
 
@@ -83,7 +83,7 @@ git checkout <Release Tag>
 
 Follow the links below to compile, build, and test the design solution.
 
-- [Building PCIe Root Port on MK-A5E065BB32AEA](./mk-a5e065bb32aea/pcie-rp)
+- [Building PCIe Root Port on MK-A5E065BB32AEA](./mk-a5e065bb32aea/pcie-rp/README.md)
 - [Software / Yocto (GSRD 2.0)](./mk-a5e065bb32aea/pcie-rp/software/yocto_linux/README.md)
 
 Run `make help` from the design directory for the full target list.

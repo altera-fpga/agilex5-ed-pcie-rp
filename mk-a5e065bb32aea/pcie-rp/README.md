@@ -1,6 +1,6 @@
 # Altera Agilex 5 PCIe Root Port System Example Design
 
-System Example Design for the Agilex 5 FPGA E-Series 065B Modular Development Kit
+System Example Design for the [Agilex 5 FPGA E-Series 065B Modular Development Kit (MK-A5E065BB32AEA)](https://www.altera.com/products/devkit/po-3274/agilex-5-fpga-and-soc-e-series-065b-modular-development-kit)
 (`mk-a5e065bb32aea`) demonstrating a PCIe Gen4x4 root port with HPS, Multichannel DMA
 (MCDMA) bridge, and related interconnect.
 
